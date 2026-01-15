@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beach'n Bagels | Coming Soon</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Extracted colors from your logo */
+            --teal: #2A5A66; 
+            --gold: #FDBB4C;
+            --cream: #FDF6E9;
+            --white: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--cream);
+            color: var(--teal);
+            font-family: 'Nunito', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        /* Logo Styling */
+        .logo {
+            max-width: 250px;
+            margin-bottom: 20px;
+            border-radius: 50%; /* Ensures it stays circular if needed */
+        }
+
+        h1 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            line-height: 1.2;
+        }
+
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: var(--teal);
+        }
+
+        /* Email Form Styling */
+        .email-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        input[type="email"] {
+            padding: 15px;
+            border: 2px solid var(--teal);
+            border-radius: 50px;
+            font-size: 1rem;
+            background-color: var(--white);
+            color: var(--teal);
+            font-family: 'Nunito', sans-serif;
+            outline: none;
+        }
+
+        button {
+            padding: 15px;
+            background-color: var(--gold);
+            color: var(--teal);
+            border: 2px solid var(--teal);
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Fredoka', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background-color: var(--teal);
+            color: var(--gold);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 40px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        footer a {
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        /* Mobile tweaks */
+        @media (min-width: 600px) {
+            .email-form {
+                flex-direction: row;
+            }
+            input[type="email"] {
+                flex: 1;
+            }
+            button {
+                flex: 0 0 auto;
+                padding-left: 30px;
+                padding-right: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <img src="logo.png" alt="Beach'n Bagels Logo with Ollie the Otter" class="logo">
+
+        <h1>Fresh Bagels are coming to Silver Strand.</h1>
+        
+        <p>
+            We’re bringing hand-rolled, boiled-and-baked bagels to Oxnard. 
+            <br>
+            Join the waitlist to get notified about our first <strong>pop-up drop location</strong> and menu.
+        </p>
+
+        <form class="email-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+            <input type="email" name="email" placeholder="Enter your email for bagel alerts..." required>
+            <button type="submit">Join the Club</button>
+        </form>
+
+        <footer>
+            <p>&copy; 2025 Beach'n Bagels | Oxnard, CA</p>
+            <p>Follow Ollie on <a href="#">Instagram</a></p>
+        </footer>
+    </div>
+
+</body>
+</html>
