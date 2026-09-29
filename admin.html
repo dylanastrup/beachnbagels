@@ -341,15 +341,21 @@
                 <!-- Flavors & Stock Table -->
                 <div class="card" id="flavorsCard">
                     <div class="card-header">
-                        <h2 class="card-title">Drop Flavors & Inventory Caps</h2>
-                        <button class="btn btn-teal btn-sm" onclick="openAddFlavorModal()">+ Add Flavor</button>
+                        <div>
+                            <h2 class="card-title">Drop Flavors & Inventory Caps</h2>
+                            <p style="font-size: 0.85rem; opacity: 0.8;">Sold strictly in Half Dozen (6) and Full Dozen (12) bundles.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-gold btn-sm" onclick="seedDefaultFlavors()">✨ Load Default 4 Flavors</button>
+                            <button class="btn btn-teal btn-sm" onclick="openAddFlavorModal()">+ Add Flavor</button>
+                        </div>
                     </div>
                     <div style="overflow-x: auto;">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Flavor Name</th>
-                                    <th>Price ($)</th>
+                                    <th>Bundle Pricing</th>
                                     <th>Total Baked</th>
                                     <th>Sold</th>
                                     <th>Remaining</th>
@@ -478,13 +484,19 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                     <div>
-                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Price ($)</label>
-                        <input type="number" step="0.25" min="0" id="modalFlavorPrice" placeholder="3.50" required style="width: 100%;">
+                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Half Dozen Price ($)</label>
+                        <input type="number" step="0.50" min="0" id="modalFlavorPriceHalf" placeholder="18.00" required style="width: 100%;">
                     </div>
                     <div>
-                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Bake Goal (Total Stock)</label>
-                        <input type="number" step="1" min="0" id="modalFlavorTotal" placeholder="48" required style="width: 100%;">
+                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Full Dozen Price ($)</label>
+                        <input type="number" step="0.50" min="0" id="modalFlavorPriceFull" placeholder="28.00" required style="width: 100%;">
                     </div>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Total Bagels to Bake (Inventory Cap)</label>
+                    <input type="number" step="6" min="0" id="modalFlavorTotal" placeholder="48" required style="width: 100%;">
+                    <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 4px;">Enter total individual bagels. e.g. 48 bagels = 4 dozen (or 8 half dozens).</p>
                 </div>
 
                 <div id="modalSoldCountGroup" style="display: none; margin-bottom: 14px;">
@@ -551,7 +563,7 @@
                 <div id="starterFlavorsOption" style="margin-bottom: 20px; background: var(--teal-light); padding: 12px; border-radius: 10px;">
                     <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer;">
                         <input type="checkbox" id="modalIncludeStarters" checked style="width: auto;">
-                        Include starter flavors (Everything, Plain, Sesame, Jalapeño Cheddar, Schmear)
+                        Include 4 default flavors (Plain $15/$25, Everything $18/$28, Sesame $18/$28, Poppy $18/$28)
                     </label>
                 </div>
 
@@ -922,17 +934,75 @@
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    if (includeStarters) {
-                        const starterFlavors = [
-                            { name: "Everything", price: 3.50, totalInventory: 48, soldCount: 0, description: "Topped with toasted garlic, onion, sesame, poppy seeds, and sea salt" },
-                            { name: "Plain", price: 3.50, totalInventory: 48, soldCount: 0, description: "Classic hand-rolled, chewy boiled-and-baked bagel" },
-                            { name: "Sesame", price: 3.50, totalInventory: 36, soldCount: 0, description: "Crusted with nutty toasted sesame seeds" },
-                            { name: "Jalapeño Cheddar", price: 4.00, totalInventory: 24, soldCount: 0, description: "Fresh sliced jalapeños with sharp melted cheddar" },
-                            { name: "Scallion Schmear (8oz)", price: 5.00, totalInventory: 30, soldCount: 0, description: "Whipped cream cheese with fresh crisp scallions" }
-                        ];
+        const defaultStarterFlavors = [
+            {
+                name: "Plain",
+                priceHalf: 15.00,
+                priceFull: 25.00,
+                price: 25.00,
+                totalInventory: 48,
+                soldCount: 0,
+                description: "Classic hand-rolled, chewy boiled-and-baked bagel"
+            },
+            {
+                name: "Everything",
+                priceHalf: 18.00,
+                priceFull: 28.00,
+                price: 28.00,
+                totalInventory: 48,
+                soldCount: 0,
+                description: "Topped with toasted garlic, onion, sesame, poppy seeds, and sea salt"
+            },
+            {
+                name: "Sesame",
+                priceHalf: 18.00,
+                priceFull: 28.00,
+                price: 28.00,
+                totalInventory: 36,
+                soldCount: 0,
+                description: "Crusted with nutty toasted sesame seeds"
+            },
+            {
+                name: "Poppy",
+                priceHalf: 18.00,
+                priceFull: 28.00,
+                price: 28.00,
+                totalInventory: 36,
+                soldCount: 0,
+                description: "Packed with crunchy, nutty toasted blue poppy seeds"
+            }
+        ];
 
-                        for (const fl of starterFlavors) {
-                            await db.collection("drops").doc(newDropRef.id).collection("flavors").add(fl);
+        window.seedDefaultFlavors = async function() {
+            if (!currentDropId) return alert("Please select or create a drop first.");
+            const confirmed = confirm("Load the 4 default flavors for this drop?\\n\\n• Plain ($15 half / $25 dozen)\\n• Everything ($18 half / $28 dozen)\\n• Sesame ($18 half / $28 dozen)\\n• Poppy ($18 half / $28 dozen)\\n\\nThis will add or update these 4 flavors on your currently selected drop.");
+            if (!confirmed) return;
+
+            for (const fl of defaultStarterFlavors) {
+                const existing = dropFlavors.find(f => f.name && f.name.toLowerCase() === fl.name.toLowerCase());
+                if (!existing) {
+                    await db.collection("drops").doc(currentDropId).collection("flavors").add({
+                        ...fl,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    await db.collection("drops").doc(currentDropId).collection("flavors").doc(existing.id).update({
+                        priceHalf: fl.priceHalf,
+                        priceFull: fl.priceFull,
+                        price: fl.priceFull,
+                        totalInventory: fl.totalInventory,
+                        description: fl.description
+                    });
+                }
+            }
+        };
+
+                    if (includeStarters) {
+                        for (const fl of defaultStarterFlavors) {
+                            await db.collection("drops").doc(newDropRef.id).collection("flavors").add({
+                                ...fl,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
                         }
                     }
 
@@ -953,7 +1023,7 @@
             const drop = allDrops.find(d => d.id === currentDropId);
             if (!drop) return;
 
-            const confirmed = confirm(`Are you sure you want to delete "${drop.title}"?\n\nThis will permanently delete this drop and its flavor inventory.`);
+            const confirmed = confirm(`Are you sure you want to delete "${drop.title}"?\\n\\nThis will permanently delete this drop and its flavor inventory.`);
             if (!confirmed) return;
 
             try {
@@ -977,7 +1047,7 @@
         function renderFlavorsTable(flavors) {
             const tbody = document.getElementById("flavorsTableBody");
             if (flavors.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; opacity: 0.7;">No flavors configured.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; opacity: 0.7; padding: 20px;">No flavors configured yet. Click "✨ Load Default 4 Flavors" above to add Plain, Everything, Sesame, and Poppy!</td></tr>`;
                 return;
             }
 
@@ -985,8 +1055,12 @@
                 const sold = fl.soldCount || 0;
                 const total = fl.totalInventory || 0;
                 const remaining = Math.max(0, total - sold);
-                const isSoldOut = remaining <= 0;
+                const isSoldOut = remaining < 6;
                 const escapedName = (fl.name || "").replace(/'/g, "\\'");
+
+                const priceDisplay = (fl.priceHalf != null && fl.priceFull != null)
+                    ? `<div><strong>$${fl.priceHalf.toFixed(2)}</strong> <span style="font-size:0.8rem; opacity:0.8;">(Half)</span></div><div><strong>$${fl.priceFull.toFixed(2)}</strong> <span style="font-size:0.8rem; opacity:0.8;">(Dozen)</span></div>`
+                    : `<strong>$${(fl.price || 0).toFixed(2)}</strong>`;
 
                 return `
                     <tr>
@@ -994,9 +1068,9 @@
                             <strong>${fl.name}</strong>
                             ${fl.description ? `<div style="font-size:0.8rem; opacity:0.75; margin-top:2px;">${fl.description}</div>` : ''}
                         </td>
-                        <td>$${(fl.price || 0).toFixed(2)}</td>
-                        <td>${total}</td>
-                        <td>${sold}</td>
+                        <td>${priceDisplay}</td>
+                        <td>${total} <span style="font-size:0.8rem; opacity:0.75;">(${(total/12).toFixed(1)} doz)</span></td>
+                        <td>${sold} <span style="font-size:0.8rem; opacity:0.75;">(${(sold/12).toFixed(1)} doz)</span></td>
                         <td><strong style="color: ${isSoldOut ? 'var(--red)' : 'inherit'};">${remaining}</strong></td>
                         <td>
                             <span class="status-pill status-${isSoldOut ? 'sold_out' : 'active'}">
@@ -1004,8 +1078,8 @@
                             </span>
                         </td>
                         <td style="text-align: right; white-space: nowrap;">
-                            <button class="btn btn-sm btn-teal" onclick="adjustInventory('${fl.id}', 6)" title="Add 6 to bake total">+6</button>
-                            <button class="btn btn-sm btn-teal" onclick="adjustInventory('${fl.id}', -6)" title="Subtract 6 from bake total">-6</button>
+                            <button class="btn btn-sm btn-teal" onclick="adjustInventory('${fl.id}', 12)" title="Add 1 Dozen (12) to bake total">+12</button>
+                            <button class="btn btn-sm btn-teal" onclick="adjustInventory('${fl.id}', -12)" title="Subtract 1 Dozen (12) from bake total">-12</button>
                             <button class="btn btn-sm btn-gold" onclick="openEditFlavorModal('${fl.id}')" title="Edit flavor details">✏️ Edit</button>
                             <button class="btn btn-sm" style="background:#fee2e2; border-color:#ef4444; color:#991b1b; padding:6px 10px;" onclick="deleteFlavor('${fl.id}', '${escapedName}')" title="Delete flavor">🗑️</button>
                         </td>
@@ -1028,7 +1102,8 @@
             document.getElementById("flavorModalTitle").textContent = "Add New Flavor";
             document.getElementById("modalFlavorId").value = "";
             document.getElementById("modalFlavorName").value = "";
-            document.getElementById("modalFlavorPrice").value = "3.50";
+            document.getElementById("modalFlavorPriceHalf").value = "18.00";
+            document.getElementById("modalFlavorPriceFull").value = "28.00";
             document.getElementById("modalFlavorTotal").value = "36";
             document.getElementById("modalFlavorDesc").value = "";
             document.getElementById("modalSoldCountGroup").style.display = "none";
@@ -1044,7 +1119,8 @@
             document.getElementById("flavorModalTitle").textContent = "Edit Flavor: " + fl.name;
             document.getElementById("modalFlavorId").value = fl.id;
             document.getElementById("modalFlavorName").value = fl.name || "";
-            document.getElementById("modalFlavorPrice").value = fl.price || 0;
+            document.getElementById("modalFlavorPriceHalf").value = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
+            document.getElementById("modalFlavorPriceFull").value = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
             document.getElementById("modalFlavorTotal").value = fl.totalInventory || 0;
             document.getElementById("modalFlavorDesc").value = fl.description || "";
             document.getElementById("modalSoldCountGroup").style.display = "block";
@@ -1063,7 +1139,8 @@
 
             const flavorId = document.getElementById("modalFlavorId").value;
             const name = document.getElementById("modalFlavorName").value.trim();
-            const price = parseFloat(document.getElementById("modalFlavorPrice").value) || 0;
+            const priceHalf = parseFloat(document.getElementById("modalFlavorPriceHalf").value) || 0;
+            const priceFull = parseFloat(document.getElementById("modalFlavorPriceFull").value) || 0;
             const totalInventory = parseInt(document.getElementById("modalFlavorTotal").value, 10) || 0;
             const description = document.getElementById("modalFlavorDesc").value.trim();
             const soldCount = parseInt(document.getElementById("modalFlavorSold").value, 10) || 0;
@@ -1073,21 +1150,24 @@
             btn.textContent = "Saving...";
 
             try {
+                const payload = {
+                    name,
+                    priceHalf,
+                    priceFull,
+                    price: priceFull,
+                    totalInventory,
+                    description
+                };
+
                 if (flavorId) {
                     await db.collection("drops").doc(currentDropId).collection("flavors").doc(flavorId).update({
-                        name,
-                        price,
-                        totalInventory,
-                        soldCount,
-                        description
+                        ...payload,
+                        soldCount
                     });
                 } else {
                     await db.collection("drops").doc(currentDropId).collection("flavors").add({
-                        name,
-                        price,
-                        totalInventory,
+                        ...payload,
                         soldCount: 0,
-                        description,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
@@ -1103,7 +1183,7 @@
 
         window.deleteFlavor = async function(flavorId, flavorName) {
             if (!currentDropId) return;
-            const confirmed = confirm(`Are you sure you want to delete "${flavorName}"?\n\nThis will remove it from the drop and preorder menu.`);
+            const confirmed = confirm(`Are you sure you want to delete "${flavorName}"?\\n\\nThis will remove it from the drop and preorder menu.`);
             if (!confirmed) return;
 
             try {
@@ -1127,9 +1207,9 @@
 
             let html = `
                 <div class="prep-stat-card" style="border-color: var(--gold); background: #fffdf5;">
-                    <div class="prep-stat-label" style="color: #92400e;">TOTAL TO PREP</div>
+                    <div class="prep-stat-label" style="color: #92400e;">TOTAL TO BAKE</div>
                     <div class="prep-stat-number" style="color: #b45309;">${totalSold}</div>
-                    <div style="font-size: 0.8rem; opacity: 0.8; font-weight: 700;">All Items Combined</div>
+                    <div style="font-size: 0.85rem; opacity: 0.85; font-weight: 700;">${(totalSold / 12).toFixed(1)} Dozen Total</div>
                 </div>
             `;
 
@@ -1139,7 +1219,7 @@
                     <div class="prep-stat-card">
                         <div class="prep-stat-label">${fl.name}</div>
                         <div class="prep-stat-number">${sold}</div>
-                        <div style="font-size: 0.8rem; opacity: 0.8;">Preordered / To Bake</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8; font-weight: 700;">${(sold / 12).toFixed(1)} Dozen to Bake</div>
                     </div>
                 `;
             }).join("");
@@ -1226,14 +1306,19 @@
                 }
                 if (Array.isArray(o.items)) {
                     o.items.forEach(item => {
-                        totalBagels += (item.quantity || 0);
+                        const units = item.bagelUnits != null ? item.bagelUnits : (
+                            item.bundle === "half" ? (item.quantity || 1) * 6 : (
+                                item.bundle === "dozen" ? (item.quantity || 1) * 12 : (item.quantity || 0)
+                            )
+                        );
+                        totalBagels += units;
                     });
                 }
             });
 
             if (countEl) countEl.textContent = totalOrders;
             if (revEl) revEl.textContent = totalRevenue.toFixed(2);
-            if (bagelsEl) bagelsEl.textContent = totalBagels;
+            if (bagelsEl) bagelsEl.textContent = `${totalBagels} (${(totalBagels / 12).toFixed(1)} doz)`;
             if (pickupEl) pickupEl.textContent = `${pickedUpCount} / ${totalOrders}`;
         }
 
@@ -1247,7 +1332,10 @@
 
             tbody.innerHTML = orders.map(order => {
                 const isPickedUp = order.pickupStatus === "picked_up";
-                const itemsSummary = (order.items || []).map(i => `${i.quantity}x ${i.flavorName || i.name}`).join(", ");
+                const itemsSummary = (order.items || []).map(i => {
+                    const label = i.bundleLabel || (i.bundle === "half" ? "Half Dozen" : (i.bundle === "dozen" ? "Full Dozen" : ""));
+                    return `${i.quantity}x ${i.flavorName || i.name}${label ? ` (${label})` : ''}`;
+                }).join(", ");
                 const orderDrop = allDrops.find(d => d.id === order.dropId);
                 const dropTag = (ordersScope === "all" && orderDrop) ? `<div style="font-size:0.75rem; color:var(--teal); font-weight:700; margin-top:3px;">📍 ${orderDrop.title}</div>` : '';
 
@@ -1301,13 +1389,18 @@
             try {
                 if (restoreInventory && order.dropId && Array.isArray(order.items)) {
                     for (const item of order.items) {
-                        if (item.flavorId && item.quantity) {
+                        const unitsToRestore = item.bagelUnits != null ? item.bagelUnits : (
+                            item.bundle === "half" ? (item.quantity || 1) * 6 : (
+                                item.bundle === "dozen" ? (item.quantity || 1) * 12 : (item.quantity || 1)
+                            )
+                        );
+                        if (item.flavorId && unitsToRestore) {
                             try {
                                 const flavorRef = db.collection("drops").doc(order.dropId).collection("flavors").doc(item.flavorId);
                                 const flavorDoc = await flavorRef.get();
                                 if (flavorDoc.exists) {
                                     const currentSold = flavorDoc.data().soldCount || 0;
-                                    const newSold = Math.max(0, currentSold - item.quantity);
+                                    const newSold = Math.max(0, currentSold - unitsToRestore);
                                     await flavorRef.update({ soldCount: newSold });
                                 }
                             } catch (flErr) {

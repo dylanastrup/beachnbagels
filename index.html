@@ -310,6 +310,36 @@
         .stock-low { background: #fef3c7; color: #92400e; }
         .stock-out { background: #fee2e2; color: #991b1b; }
 
+        /* Bundle selection options */
+        .bundle-options-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 330px;
+        }
+
+        .bundle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--teal-light);
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1.5px solid var(--teal);
+            gap: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .flavor-card {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            .bundle-options-col {
+                max-width: 100% !important;
+            }
+        }
+
         /* Quantity Stepper */
         .qty-stepper {
             display: flex;
@@ -796,39 +826,78 @@
             });
         }
 
+        function getBagelsInCartForFlavor(flavorId) {
+            const halfQty = cart[`${flavorId}::half`] || 0;
+            const dozenQty = cart[`${flavorId}::dozen`] || 0;
+            const singleQty = cart[`${flavorId}::single`] || 0;
+            return (halfQty * 6) + (dozenQty * 12) + singleQty;
+        }
+
         function renderFlavors(flavorList) {
             flavorsContainer.innerHTML = "";
-            let anyAvailable = false;
 
             flavorList.forEach(fl => {
                 const sold = fl.soldCount || 0;
                 const total = fl.totalInventory || 0;
                 const remaining = Math.max(0, total - sold);
-                const isSoldOut = remaining <= 0;
-                if (!isSoldOut) anyAvailable = true;
+                const isSoldOut = remaining < 6;
 
-                const qtyInCart = cart[fl.id] || 0;
+                // Bundle Prices
+                const priceHalf = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
+                const priceFull = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
+
+                // Cart counts
+                const qtyHalf = cart[`${fl.id}::half`] || 0;
+                const qtyDozen = cart[`${fl.id}::dozen`] || 0;
+
+                // Remaining available for cart
+                const bagelsInCart = getBagelsInCartForFlavor(fl.id);
+                const availableForCart = remaining - bagelsInCart;
 
                 let stockBadgeHtml = `<span class="stock-badge stock-in">In Stock</span>`;
                 if (isSoldOut) {
                     stockBadgeHtml = `<span class="stock-badge stock-out">Sold Out</span>`;
-                } else if (remaining <= 8) {
+                } else if (remaining < 18) {
                     stockBadgeHtml = `<span class="stock-badge stock-low">Only ${remaining} Left!</span>`;
                 }
 
                 const card = document.createElement("div");
                 card.className = `flavor-card ${isSoldOut ? 'sold-out' : ''}`;
                 card.innerHTML = `
-                    <div class="flavor-meta">
-                        <h3>${fl.name}</h3>
-                        ${fl.description ? `<p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 4px;">${fl.description}</p>` : ''}
-                        <div class="flavor-price">$${(fl.price || 0).toFixed(2)}</div>
-                        ${stockBadgeHtml}
+                    <div style="flex: 1; min-width: 180px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <h3 style="font-family:'Fredoka',sans-serif; font-size:1.35rem; color:var(--teal); margin:0;">${fl.name}</h3>
+                            ${stockBadgeHtml}
+                        </div>
+                        ${fl.description ? `<p style="font-size: 0.85rem; opacity: 0.8; margin: 4px 0 0 0;">${fl.description}</p>` : ''}
                     </div>
-                    <div class="qty-stepper">
-                        <button class="qty-btn" onclick="updateItemQty('${fl.id}', -1)" ${qtyInCart === 0 ? 'disabled' : ''}>-</button>
-                        <span class="qty-number" id="qty-${fl.id}">${qtyInCart}</span>
-                        <button class="qty-btn" onclick="updateItemQty('${fl.id}', 1)" ${isSoldOut || qtyInCart >= remaining ? 'disabled' : ''}>+</button>
+
+                    <div class="bundle-options-col">
+                        <!-- Half Dozen Bundle -->
+                        <div class="bundle-row">
+                            <div>
+                                <div style="font-weight: 800; font-size: 0.95rem; color: var(--teal-dark);">Half Dozen (6)</div>
+                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--teal);">$${priceHalf.toFixed(2)}</div>
+                            </div>
+                            <div class="qty-stepper">
+                                <button class="qty-btn" onclick="updateBundleQty('${fl.id}', 'half', -1)" ${qtyHalf === 0 ? 'disabled' : ''}>-</button>
+                                <span class="qty-number" id="qty-${fl.id}-half">${qtyHalf}</span>
+                                <button class="qty-btn" onclick="updateBundleQty('${fl.id}', 'half', 1)" ${availableForCart < 6 ? 'disabled' : ''}>+</button>
+                            </div>
+                        </div>
+
+                        <!-- Full Dozen Bundle -->
+                        <div class="bundle-row">
+                            <div>
+                                <div style="font-weight: 800; font-size: 0.95rem; color: var(--teal-dark);">Full Dozen (12)</div>
+                                <div style="font-size: 0.9rem; font-weight: 700; color: var(--teal);">$${priceFull.toFixed(2)}</div>
+                            </div>
+                            <div class="qty-stepper">
+                                <button class="qty-btn" onclick="updateBundleQty('${fl.id}', 'dozen', -1)" ${qtyDozen === 0 ? 'disabled' : ''}>-</button>
+                                <span class="qty-number" id="qty-${fl.id}-dozen">${qtyDozen}</span>
+                                <button class="qty-btn" onclick="updateBundleQty('${fl.id}', 'dozen', 1)" ${availableForCart < 12 ? 'disabled' : ''}>+</button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 flavorsContainer.appendChild(card);
@@ -837,38 +906,58 @@
             updateCartUI();
         }
 
-        window.updateItemQty = function(flavorId, delta) {
+        window.updateBundleQty = function(flavorId, bundle, delta) {
             const fl = flavors.find(f => f.id === flavorId);
             if (!fl) return;
-            const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
-            const current = cart[flavorId] || 0;
-            const next = Math.max(0, Math.min(remaining, current + delta));
 
-            if (next === 0) {
-                delete cart[flavorId];
+            const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
+            const bagelsPerBundle = bundle === "half" ? 6 : (bundle === "dozen" ? 12 : 1);
+            const currentQty = cart[`${flavorId}::${bundle}`] || 0;
+            const currentTotalBagelsInCart = getBagelsInCartForFlavor(flavorId);
+            const otherBagelsInCart = currentTotalBagelsInCart - (currentQty * bagelsPerBundle);
+
+            const nextQty = Math.max(0, currentQty + delta);
+            const nextTotalBagels = otherBagelsInCart + (nextQty * bagelsPerBundle);
+
+            if (nextTotalBagels > remaining) {
+                return;
+            }
+
+            if (nextQty === 0) {
+                delete cart[`${flavorId}::${bundle}`];
             } else {
-                cart[flavorId] = next;
+                cart[`${flavorId}::${bundle}`] = nextQty;
             }
 
             renderFlavors(flavors);
         };
 
         function updateCartUI() {
-            let totalItems = 0;
+            let totalBundles = 0;
             let totalPrice = 0;
 
-            Object.entries(cart).forEach(([id, qty]) => {
-                const fl = flavors.find(f => f.id === id);
-                if (fl && qty > 0) {
-                    totalItems += qty;
-                    totalPrice += qty * (fl.price || 0);
+            Object.entries(cart).forEach(([key, qty]) => {
+                if (qty <= 0) return;
+                const [flavorId, bundle] = key.split("::");
+                const fl = flavors.find(f => f.id === flavorId);
+                if (fl) {
+                    let unitPrice = 0;
+                    if (bundle === "half") {
+                        unitPrice = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
+                    } else if (bundle === "dozen") {
+                        unitPrice = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
+                    } else {
+                        unitPrice = fl.price || 3.50;
+                    }
+                    totalBundles += qty;
+                    totalPrice += qty * unitPrice;
                 }
             });
 
-            cartCount.textContent = totalItems;
+            cartCount.textContent = totalBundles;
             cartTotal.textContent = totalPrice.toFixed(2);
 
-            if (totalItems > 0) {
+            if (totalBundles > 0) {
                 cartBar.style.display = "flex";
             } else {
                 cartBar.style.display = "none";
@@ -887,15 +976,29 @@
             let summaryHtml = "";
             let total = 0;
 
-            Object.entries(cart).forEach(([id, qty]) => {
-                const fl = flavors.find(f => f.id === id);
-                if (fl && qty > 0) {
-                    const subtotal = qty * fl.price;
+            Object.entries(cart).forEach(([key, qty]) => {
+                if (qty <= 0) return;
+                const [flavorId, bundle] = key.split("::");
+                const fl = flavors.find(f => f.id === flavorId);
+                if (fl) {
+                    let unitPrice = 0;
+                    let bundleTitle = "";
+                    if (bundle === "half") {
+                        unitPrice = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
+                        bundleTitle = "Half Dozen (6)";
+                    } else if (bundle === "dozen") {
+                        unitPrice = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
+                        bundleTitle = "Full Dozen (12)";
+                    } else {
+                        unitPrice = fl.price || 3.50;
+                        bundleTitle = "Single";
+                    }
+                    const subtotal = qty * unitPrice;
                     total += subtotal;
                     summaryHtml += `
-                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                            <span>${qty}x ${fl.name}</span>
-                            <span>$${subtotal.toFixed(2)}</span>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.95rem;">
+                            <span><strong>${qty}x</strong> ${fl.name} <span style="font-size:0.85rem; opacity:0.8;">(${bundleTitle})</span></span>
+                            <span style="font-weight:700; color:var(--teal);">$${subtotal.toFixed(2)}</span>
                         </div>
                     `;
                 }
@@ -918,7 +1021,14 @@
 
             const orderPayload = {
                 dropId: currentDropId,
-                items: Object.entries(cart).map(([flavorId, quantity]) => ({ flavorId, quantity })),
+                items: Object.entries(cart).filter(([_, qty]) => qty > 0).map(([key, qty]) => {
+                    const [flavorId, bundle] = key.split("::");
+                    return {
+                        flavorId,
+                        bundle: bundle || "dozen",
+                        quantity: qty
+                    };
+                }),
                 customerName: document.getElementById("custName").value.trim(),
                 customerEmail: document.getElementById("custEmail").value.trim(),
                 customerPhone: document.getElementById("custPhone").value.trim(),
