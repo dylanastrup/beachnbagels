@@ -3,15 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beach'n Bagels | Coming Soon</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <title>Beach'n Bagels | Hand-Rolled Pop-up Bagels | Silver Strand</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+
+    <!-- Open Graph / Social Sharing Previews (iMessage, Instagram, Facebook) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://beachnbagels.com/">
+    <meta property="og:title" content="Beach'n Bagels | Silver Strand, Oxnard">
+    <meta property="og:description" content="Small-batch, hand-rolled pop-up bagels on the coast of Oxnard, CA. Preorder your weekend batch before they sell out!">
+    <meta property="og:image" content="https://beachnbagels.com/favicon.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Beach'n Bagels | Silver Strand, Oxnard">
+    <meta name="twitter:description" content="Small-batch, hand-rolled pop-up bagels on the coast of Oxnard, CA. Preorder your weekend batch before they sell out!">
+    <meta name="twitter:image" content="https://beachnbagels.com/favicon.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Firebase Compat SDKs (Runs on file://, localhost, and production) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <style>
         :root {
-            /* Extracted colors from your logo */
+            /* Extracted brand colors */
             --teal: #2A5A66; 
+            --teal-dark: #1b3d45;
+            --teal-light: #EBF2F4;
             --gold: #FDBB4C;
+            --gold-hover: #f3ae3b;
             --cream: #FDF6E9;
             --white: #ffffff;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-600: #6c757d;
+            --red: #d9383a;
+            --green: #238b7d;
         }
 
         * {
@@ -24,37 +49,45 @@
             background-color: var(--cream);
             color: var(--teal);
             font-family: 'Nunito', sans-serif;
+            min-height: 100vh;
+            padding: 20px 15px 40px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-            text-align: center;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
+            text-align: center;
         }
 
         /* Logo Styling */
         .logo {
-            max-width: 250px;
-            margin-bottom: 20px;
-            border-radius: 50%; /* Ensures it stays circular if needed */
+            width: 190px;
+            height: 190px;
+            max-width: 100%;
+            margin-bottom: 15px;
+            border-radius: 50%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: rotate(-3deg) scale(1.02);
         }
 
         h1 {
             font-family: 'Fredoka', sans-serif;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 2.4rem;
+            margin-bottom: 12px;
             line-height: 1.2;
+            color: var(--teal);
         }
 
         p {
             font-size: 1.1rem;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             line-height: 1.6;
         }
 
@@ -63,15 +96,96 @@
             color: var(--teal);
         }
 
+        /* Banner for Drop Status */
+        .drop-banner {
+            background-color: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 25px;
+            text-align: left;
+            box-shadow: 0 4px 12px rgba(42, 90, 102, 0.08);
+            display: none; /* Shown dynamically when drop is active or closed */
+        }
+
+        .drop-banner-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .drop-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.3rem;
+            color: var(--teal);
+        }
+
+        .badge-live {
+            background-color: var(--green);
+            color: var(--white);
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulse 2s infinite;
+        }
+
+        .badge-sold-out {
+            background-color: var(--red);
+            color: var(--white);
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.75; }
+            100% { opacity: 1; }
+        }
+
+        .drop-info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+        }
+
+        .countdown-timer {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--gray-200);
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: var(--teal);
+        }
+
         /* Email Form Styling */
+        .email-form-section {
+            background-color: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(42, 90, 102, 0.06);
+        }
+
         .email-form {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
 
-        input[type="email"] {
-            padding: 15px;
+        input[type="email"], input[type="text"], input[type="tel"] {
+            padding: 14px 18px;
             border: 2px solid var(--teal);
             border-radius: 50px;
             font-size: 1rem;
@@ -79,10 +193,16 @@
             color: var(--teal);
             font-family: 'Nunito', sans-serif;
             outline: none;
+            width: 100%;
+            transition: border-color 0.2s;
         }
 
-        button {
-            padding: 15px;
+        input:focus {
+            border-color: var(--gold);
+        }
+
+        .btn-primary {
+            padding: 14px 28px;
             background-color: var(--gold);
             color: var(--teal);
             border: 2px solid var(--teal);
@@ -94,20 +214,216 @@
             font-family: 'Fredoka', sans-serif;
             text-transform: uppercase;
             letter-spacing: 1px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        button:hover {
+        .btn-primary:hover {
             background-color: var(--teal);
             color: var(--gold);
             transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+        }
+
+        .btn-primary:disabled {
+            background-color: var(--gray-200);
+            color: var(--gray-600);
+            border-color: var(--gray-600);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-feedback {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: #e8f5e9;
+            color: #1b5e20;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        /* Preorder Menu & Inventory Grid */
+        #preorderSection {
+            display: none;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 2rem;
+            color: var(--teal);
+        }
+
+        .flavor-card {
+            background: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(42, 90, 102, 0.05);
+            transition: transform 0.2s ease;
+        }
+
+        .flavor-card.sold-out {
+            opacity: 0.6;
+            background: #fdfdfd;
+        }
+
+        .flavor-meta h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.25rem;
+            color: var(--teal);
+            margin-bottom: 4px;
+        }
+
+        .flavor-price {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--teal-dark);
+        }
+
+        .stock-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .stock-in { background: #d1fae5; color: #065f46; }
+        .stock-low { background: #fef3c7; color: #92400e; }
+        .stock-out { background: #fee2e2; color: #991b1b; }
+
+        /* Quantity Stepper */
+        .qty-stepper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .qty-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--teal);
+            background: var(--gold);
+            color: var(--teal);
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .qty-btn:hover:not(:disabled) {
+            background: var(--teal);
+            color: var(--gold);
+        }
+
+        .qty-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .qty-number {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Sticky Cart Bar */
+        .cart-bar {
+            display: none;
+            position: sticky;
+            bottom: 20px;
+            background: var(--teal);
+            color: var(--white);
+            border-radius: 50px;
+            padding: 14px 24px;
+            box-shadow: 0 8px 24px rgba(42, 90, 102, 0.35);
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+            z-index: 100;
+            border: 2px solid var(--gold);
+        }
+
+        .cart-summary {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.15rem;
+        }
+
+        /* Modal for Checkout Details */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(42, 90, 102, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: var(--cream);
+            border: 3px solid var(--teal);
+            border-radius: 24px;
+            max-width: 500px;
+            width: 100%;
+            padding: 28px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+            text-align: left;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--teal);
+            cursor: pointer;
+            font-weight: bold;
         }
 
         /* Footer */
         footer {
             margin-top: 40px;
             font-size: 0.9rem;
-            opacity: 0.8;
+            opacity: 0.85;
+            text-align: center;
         }
 
         footer a {
@@ -115,16 +431,19 @@
             text-decoration: none;
             font-weight: bold;
         }
-        
-        /* Mobile tweaks */
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
         @media (min-width: 600px) {
             .email-form {
                 flex-direction: row;
             }
-            input[type="email"] {
+            .email-form input {
                 flex: 1;
             }
-            button {
+            .email-form button {
                 flex: 0 0 auto;
                 padding-left: 30px;
                 padding-right: 30px;
@@ -135,26 +454,547 @@
 <body>
 
     <div class="container">
-        <img src="logo.png" alt="Beach'n Bagels Logo with Ollie the Otter" class="logo">
+        <!-- Logo -->
+        <a href="/">
+            <img src="favicon.png" alt="Beach'n Bagels Logo with Ollie the Otter" class="logo">
+        </a>
 
-        <h1>Fresh Bagels are coming to Silver Strand.</h1>
-        
-        <p>
-            We’re bringing hand-rolled, boiled-and-baked bagels to Oxnard. 
-            <br>
-            Join the waitlist to get notified about our first <strong>pop-up</strong> and menu.
-        </p>
+        <!-- Dynamic Drop Banner (Shown when drop is active or closed) -->
+        <div id="dropBanner" class="drop-banner">
+            <div class="drop-banner-header">
+                <span class="drop-title" id="bannerDropTitle">Pop-up Drop</span>
+                <span id="bannerBadge" class="badge-live">Preorders Live</span>
+            </div>
+            <div class="drop-info-row">
+                <span>📍</span>
+                <span id="bannerLocation">Silver Strand Beach, Oxnard</span>
+            </div>
+            <div class="drop-info-row">
+                <span>⏰</span>
+                <span id="bannerPickupWindow">Saturday 8:00 AM - 11:00 AM</span>
+            </div>
+            <div id="bannerCountdown" class="countdown-timer">
+                ⏳ Preorders close: calculating...
+            </div>
+        </div>
 
-        <form class="email-form" action="https://formspree.io/f/xnjjnwdb" method="POST">
-            <input type="email" name="email" placeholder="Enter your email for bagel alerts..." required>
-            <button type="submit">Join the Club</button>
-        </form>
+        <!-- Hero Headline & Intro (Shown only between drops or when preorders are closed) -->
+        <div id="heroIntroSection">
+            <h1 id="heroTitle">Fresh Bagels are coming to Silver Strand.</h1>
+            <p id="heroSubtitle">
+                We’re bringing hand-rolled, boiled-and-baked bagels to Oxnard. 
+                <br>
+                Join the waitlist to get notified about our next <strong>pop-up</strong> and menu.
+            </p>
+        </div>
 
+        <!-- Live Preorder Section (Appears when active drop exists) -->
+        <div id="preorderSection">
+            <div class="section-header">
+                <h2 class="section-title">Preorder Your Bagels</h2>
+                <p style="font-size: 0.95rem; margin-bottom: 15px;">Hand-crafted in limited batches. Secure yours before we sell out!</p>
+            </div>
+
+            <!-- Flavor Cards Container -->
+            <div id="flavorsContainer">
+                <!-- Dynamically populated from Firestore -->
+            </div>
+        </div>
+
+        <!-- Sticky Floating Cart Bar -->
+        <div id="cartBar" class="cart-bar">
+            <div class="cart-summary">
+                <span id="cartCount">0</span> Bagels • $<span id="cartTotal">0.00</span>
+            </div>
+            <button id="btnOpenCheckout" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem;">
+                Review & Preorder →
+            </button>
+        </div>
+
+        <!-- Email Waitlist Form Section -->
+        <div class="email-form-section" id="waitlistSection">
+            <h3 style="font-family:'Fredoka',sans-serif; font-size: 1.4rem; margin-bottom: 8px;" id="waitlistTitle">
+                Join the Bagel Club
+            </h3>
+            <p style="font-size: 0.95rem; margin-bottom: 16px; opacity: 0.85;" id="waitlistText">
+                Get first dibs on drop dates, secret flavors, and pickup locations.
+            </p>
+
+            <form class="email-form" id="emailWaitlistForm">
+                <input type="email" name="email" id="subscriberEmail" placeholder="Enter your email for bagel alerts..." required autocomplete="email">
+                <button type="submit" class="btn-primary" id="btnSubmitWaitlist">Join the Club</button>
+            </form>
+
+            <div id="formFeedback" class="form-feedback">
+                🎉 You're in! We'll email you the moment our next drop goes live.
+            </div>
+        </div>
+
+        <!-- Footer -->
         <footer>
-            <p>&copy; 2025 Beach'n Bagels | Oxnard, CA</p>
+            <p>&copy; <span id="currentYear"></span> Beach'n Bagels | Oxnard, CA</p>
             <p>Follow us (and Ollie the Otter) on <a href="https://www.instagram.com/beachnbagels805/" target="_blank">Instagram</a></p>
         </footer>
     </div>
 
+    <!-- Order Confirmation Success Modal -->
+    <div id="orderSuccessModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="text-align: center; max-width: 460px;">
+            <div style="font-size: 3.2rem; margin-bottom: 12px; animation: bounce 1s infinite alternate;">🎉🥯</div>
+            <h2 style="font-family:'Fredoka',sans-serif; color:var(--teal); font-size: 1.8rem; margin-bottom: 8px;">Order Confirmed!</h2>
+            <p style="font-size: 1rem; color: var(--teal-dark); margin-bottom: 18px; line-height: 1.5;">
+                You're all set! Ollie the Otter and our baker are prepping your fresh, hand-rolled bagels.
+            </p>
+            
+            <div style="background: var(--teal-light); border: 2px solid var(--teal); border-radius: 14px; padding: 16px; text-align: left; margin-bottom: 20px;">
+                <div style="font-weight: 800; font-size: 0.85rem; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                    📍 Pickup Details
+                </div>
+                <div id="successDropDetails" style="font-size: 0.95rem; line-height: 1.6; color: var(--teal-dark);">
+                    <strong>Location:</strong> Silver Strand Beach, Oxnard<br>
+                    <strong>Pickup Window:</strong> Saturday Morning<br>
+                    <strong>Receipt:</strong> Check your email for your Stripe confirmation
+                </div>
+            </div>
+
+            <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 18px;">
+                Please give the name on your preorder when you arrive at the pop-up table. See you at the beach!
+            </p>
+
+            <button type="button" id="btnCloseSuccessModal" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1.05rem;">
+                Back to Beach'n Bagels
+            </button>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 style="font-family:'Fredoka',sans-serif; color:var(--teal);">Preorder Pickup Details</h2>
+                <button class="modal-close" id="btnCloseCheckout">&times;</button>
+            </div>
+            
+            <div style="background:var(--white); border:2px solid var(--teal); border-radius:14px; padding:14px; margin-bottom:18px;">
+                <h4 style="font-family:'Fredoka',sans-serif; margin-bottom:8px;">Your Selection:</h4>
+                <div id="modalOrderSummary" style="font-size:0.95rem; margin-bottom:8px;"></div>
+                <div style="border-top:1px dashed var(--gray-200); padding-top:8px; font-weight:800; font-size:1.1rem; color:var(--teal);">
+                    Total: $<span id="modalTotal">0.00</span>
+                </div>
+            </div>
+
+            <form id="checkoutForm" style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Full Name (For Pickup Box)</label>
+                    <input type="text" id="custName" placeholder="e.g. Dylan Astrup" required>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Email (For Confirmation Receipt)</label>
+                    <input type="email" id="custEmail" placeholder="you@example.com" required>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Phone Number (For Morning-of Reminder)</label>
+                    <input type="tel" id="custPhone" placeholder="(805) 555-0123" required>
+                </div>
+                
+                <p style="font-size:0.8rem; opacity:0.8; margin-top:4px;">
+                    💳 Secure payment powered by Stripe. Apple Pay, Google Pay, and cards accepted.
+                </p>
+
+                <button type="submit" id="btnPayWithStripe" class="btn-primary" style="margin-top:10px; width:100%;">
+                    Pay & Reserve Bagels
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAEOwp0RdxMkxXdBx6yJlhPhoXq6Vbi3Do",
+            authDomain: "beachnbagels.firebaseapp.com",
+            projectId: "beachnbagels",
+            storageBucket: "beachnbagels.firebasestorage.app",
+            messagingSenderId: "697659238755",
+            appId: "1:697659238755:web:58ebee2e4195cdc8744b56",
+            measurementId: "G-QWJ8540ZXF"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        // Dynamic Copyright Year
+        const currentYearEl = document.getElementById("currentYear");
+        if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
+
+        // State
+        let currentDrop = null;
+        let currentDropId = null;
+        let flavors = [];
+        const cart = {}; // { flavorId: quantity }
+
+        // DOM elements
+        const heroIntroSection = document.getElementById("heroIntroSection");
+        const dropBanner = document.getElementById("dropBanner");
+        const bannerDropTitle = document.getElementById("bannerDropTitle");
+        const bannerBadge = document.getElementById("bannerBadge");
+        const bannerLocation = document.getElementById("bannerLocation");
+        const bannerPickupWindow = document.getElementById("bannerPickupWindow");
+        const bannerCountdown = document.getElementById("bannerCountdown");
+        const preorderSection = document.getElementById("preorderSection");
+        const flavorsContainer = document.getElementById("flavorsContainer");
+        const cartBar = document.getElementById("cartBar");
+        const cartCount = document.getElementById("cartCount");
+        const cartTotal = document.getElementById("cartTotal");
+        const waitlistForm = document.getElementById("emailWaitlistForm");
+        const subscriberEmail = document.getElementById("subscriberEmail");
+        const formFeedback = document.getElementById("formFeedback");
+
+        // 1. Native Firebase Waitlist Form Submission
+        waitlistForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = subscriberEmail.value.trim().toLowerCase();
+            if (!email) return;
+
+            const submitBtn = document.getElementById("btnSubmitWaitlist");
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Joining...";
+
+            try {
+                // Save natively to Firebase Firestore waitlist collection
+                await db.collection("waitlist").add({
+                    email: email,
+                    source: "landing_page",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Celebratory feedback
+                formFeedback.style.display = "block";
+                formFeedback.innerHTML = "🎉 You're in! We'll email you the moment our next drop opens.";
+                subscriberEmail.value = "";
+                submitBtn.textContent = "Joined! 🥯";
+                submitBtn.disabled = true;
+            } catch (err) {
+                console.error("Error subscribing to waitlist:", err);
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Join the Club";
+                alert("Notice: Could not subscribe (" + err.message + "). Please verify your Firebase connection.");
+            }
+        });
+
+        // 2. Real-Time Drop & Inventory Listener
+        function listenToLiveDrop() {
+            db.collection("drops").onSnapshot((snapshot) => {
+                if (snapshot.empty) {
+                    renderNoActiveDrop();
+                    return;
+                }
+
+                // Find active drop (ignoring archived drops)
+                const nonArchivedDocs = snapshot.docs.filter(d => d.data().status !== "archived");
+                if (nonArchivedDocs.length === 0) {
+                    currentDropId = null;
+                    currentDrop = null;
+                    renderNoActiveDrop();
+                    return;
+                }
+
+                const activeDoc = nonArchivedDocs.find(d => d.data().status === "active") || nonArchivedDocs[0];
+                currentDropId = activeDoc.id;
+                currentDrop = activeDoc.data();
+
+                evaluateDropState();
+            }, (error) => {
+                console.log("Firestore drop listener info:", error);
+                renderNoActiveDrop();
+            });
+        }
+
+        function evaluateDropState() {
+            if (!currentDrop) {
+                renderNoActiveDrop();
+                return;
+            }
+
+            const now = new Date();
+            const cutoffDate = currentDrop.cutoffAt ? new Date(currentDrop.cutoffAt.toDate ? currentDrop.cutoffAt.toDate() : currentDrop.cutoffAt) : null;
+            const isCutoffPassed = cutoffDate && now > cutoffDate;
+            const isSoldOut = currentDrop.status === "sold_out";
+            const isActive = currentDrop.status === "active" && !isCutoffPassed && !isSoldOut;
+
+            dropBanner.style.display = "block";
+            bannerDropTitle.textContent = currentDrop.title || "Pop-Up Drop";
+            bannerLocation.textContent = currentDrop.pickupLocation || "Silver Strand Beach, Oxnard";
+            bannerPickupWindow.textContent = currentDrop.pickupWindow || "Saturday 8:00 AM - 11:00 AM";
+
+            if (isSoldOut) {
+                if (heroIntroSection) heroIntroSection.style.display = "block";
+                bannerBadge.textContent = "SOLD OUT";
+                bannerBadge.className = "badge-sold-out";
+                bannerCountdown.innerHTML = "🎉 All bagel flavors are sold out! Join the waitlist for the next drop.";
+                preorderSection.style.display = "none";
+                cartBar.style.display = "none";
+                return;
+            }
+
+            if (isCutoffPassed || currentDrop.status === "closed") {
+                if (heroIntroSection) heroIntroSection.style.display = "block";
+                bannerBadge.textContent = "PREORDERS CLOSED";
+                bannerBadge.className = "badge-sold-out";
+                bannerCountdown.innerHTML = "⏳ Preorders are closed while we bake. See you at Silver Strand!";
+                preorderSection.style.display = "none";
+                cartBar.style.display = "none";
+                return;
+            }
+
+            if (isActive) {
+                // Hide coming soon intro text so live drop and flavors are front-and-center
+                if (heroIntroSection) heroIntroSection.style.display = "none";
+                bannerBadge.textContent = "PREORDERS LIVE";
+                bannerBadge.className = "badge-live";
+                updateCountdown(cutoffDate);
+                preorderSection.style.display = "block";
+                listenToDropFlavors(currentDropId);
+            }
+        }
+
+        function updateCountdown(cutoffDate) {
+            if (!cutoffDate) {
+                bannerCountdown.innerHTML = "🔥 Limited quantities available!";
+                return;
+            }
+
+            function tick() {
+                const now = new Date();
+                const diff = cutoffDate - now;
+                if (diff <= 0) {
+                    evaluateDropState();
+                    return;
+                }
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                bannerCountdown.innerHTML = `⏳ Preorders close in: <strong>${hours}h ${mins}m</strong> (or when sold out)`;
+            }
+            tick();
+            setInterval(tick, 60000);
+        }
+
+        function renderNoActiveDrop() {
+            if (heroIntroSection) heroIntroSection.style.display = "block";
+            dropBanner.style.display = "none";
+            preorderSection.style.display = "none";
+            cartBar.style.display = "none";
+        }
+
+        // 3. Real-Time Flavor Inventory Listener
+        function listenToDropFlavors(dropId) {
+            db.collection("drops").doc(dropId).collection("flavors").onSnapshot((snapshot) => {
+                flavors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderFlavors(flavors);
+            });
+        }
+
+        function renderFlavors(flavorList) {
+            flavorsContainer.innerHTML = "";
+            let anyAvailable = false;
+
+            flavorList.forEach(fl => {
+                const sold = fl.soldCount || 0;
+                const total = fl.totalInventory || 0;
+                const remaining = Math.max(0, total - sold);
+                const isSoldOut = remaining <= 0;
+                if (!isSoldOut) anyAvailable = true;
+
+                const qtyInCart = cart[fl.id] || 0;
+
+                let stockBadgeHtml = `<span class="stock-badge stock-in">In Stock</span>`;
+                if (isSoldOut) {
+                    stockBadgeHtml = `<span class="stock-badge stock-out">Sold Out</span>`;
+                } else if (remaining <= 8) {
+                    stockBadgeHtml = `<span class="stock-badge stock-low">Only ${remaining} Left!</span>`;
+                }
+
+                const card = document.createElement("div");
+                card.className = `flavor-card ${isSoldOut ? 'sold-out' : ''}`;
+                card.innerHTML = `
+                    <div class="flavor-meta">
+                        <h3>${fl.name}</h3>
+                        ${fl.description ? `<p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 4px;">${fl.description}</p>` : ''}
+                        <div class="flavor-price">$${(fl.price || 0).toFixed(2)}</div>
+                        ${stockBadgeHtml}
+                    </div>
+                    <div class="qty-stepper">
+                        <button class="qty-btn" onclick="updateItemQty('${fl.id}', -1)" ${qtyInCart === 0 ? 'disabled' : ''}>-</button>
+                        <span class="qty-number" id="qty-${fl.id}">${qtyInCart}</span>
+                        <button class="qty-btn" onclick="updateItemQty('${fl.id}', 1)" ${isSoldOut || qtyInCart >= remaining ? 'disabled' : ''}>+</button>
+                    </div>
+                `;
+                flavorsContainer.appendChild(card);
+            });
+
+            updateCartUI();
+        }
+
+        window.updateItemQty = function(flavorId, delta) {
+            const fl = flavors.find(f => f.id === flavorId);
+            if (!fl) return;
+            const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
+            const current = cart[flavorId] || 0;
+            const next = Math.max(0, Math.min(remaining, current + delta));
+
+            if (next === 0) {
+                delete cart[flavorId];
+            } else {
+                cart[flavorId] = next;
+            }
+
+            renderFlavors(flavors);
+        };
+
+        function updateCartUI() {
+            let totalItems = 0;
+            let totalPrice = 0;
+
+            Object.entries(cart).forEach(([id, qty]) => {
+                const fl = flavors.find(f => f.id === id);
+                if (fl && qty > 0) {
+                    totalItems += qty;
+                    totalPrice += qty * (fl.price || 0);
+                }
+            });
+
+            cartCount.textContent = totalItems;
+            cartTotal.textContent = totalPrice.toFixed(2);
+
+            if (totalItems > 0) {
+                cartBar.style.display = "flex";
+            } else {
+                cartBar.style.display = "none";
+            }
+        }
+
+        // 4. Checkout Modal & Stripe Payment
+        const checkoutModal = document.getElementById("checkoutModal");
+        const btnOpenCheckout = document.getElementById("btnOpenCheckout");
+        const btnCloseCheckout = document.getElementById("btnCloseCheckout");
+        const modalOrderSummary = document.getElementById("modalOrderSummary");
+        const modalTotal = document.getElementById("modalTotal");
+        const checkoutForm = document.getElementById("checkoutForm");
+
+        btnOpenCheckout.addEventListener("click", () => {
+            let summaryHtml = "";
+            let total = 0;
+
+            Object.entries(cart).forEach(([id, qty]) => {
+                const fl = flavors.find(f => f.id === id);
+                if (fl && qty > 0) {
+                    const subtotal = qty * fl.price;
+                    total += subtotal;
+                    summaryHtml += `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span>${qty}x ${fl.name}</span>
+                            <span>$${subtotal.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            modalOrderSummary.innerHTML = summaryHtml;
+            modalTotal.textContent = total.toFixed(2);
+            checkoutModal.style.display = "flex";
+        });
+
+        btnCloseCheckout.addEventListener("click", () => {
+            checkoutModal.style.display = "none";
+        });
+
+        checkoutForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("btnPayWithStripe");
+            btn.disabled = true;
+            btn.textContent = "Connecting to Stripe Checkout...";
+
+            const orderPayload = {
+                dropId: currentDropId,
+                items: Object.entries(cart).map(([flavorId, quantity]) => ({ flavorId, quantity })),
+                customerName: document.getElementById("custName").value.trim(),
+                customerEmail: document.getElementById("custEmail").value.trim(),
+                customerPhone: document.getElementById("custPhone").value.trim(),
+                returnUrl: window.location.origin
+            };
+
+            try {
+                const res = await fetch("/api/createCheckoutSession", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(orderPayload)
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.sessionUrl) {
+                        window.location.href = data.sessionUrl;
+                        return;
+                    }
+                }
+                
+                alert("Preorder submitted! When Stripe functions are deployed, this automatically opens the Stripe payment checkout page.");
+                checkoutModal.style.display = "none";
+            } catch (err) {
+                console.error("Checkout error:", err);
+                alert("Checkout error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Pay & Reserve Bagels";
+            }
+        });
+
+        // Initialize listener
+        listenToLiveDrop();
+
+        // 5. Check for Stripe Checkout return redirect (?success=true or ?canceled=true)
+        (function checkCheckoutReturnStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isSuccess = urlParams.get("success") === "true";
+            const isCanceled = urlParams.get("canceled") === "true";
+
+            if (isSuccess) {
+                // Clear cart from storage/memory
+                for (let k in cart) delete cart[k];
+                updateCartUI();
+
+                const orderSuccessModal = document.getElementById("orderSuccessModal");
+                const btnCloseSuccessModal = document.getElementById("btnCloseSuccessModal");
+                const successDropDetails = document.getElementById("successDropDetails");
+
+                // If current drop is loaded, personalize the pickup details
+                if (currentDrop && successDropDetails) {
+                    successDropDetails.innerHTML = `
+                        <strong>Drop:</strong> ${currentDrop.title || "Pop-up Drop"}<br>
+                        <strong>Location:</strong> ${currentDrop.location || "Silver Strand, Oxnard"}<br>
+                        <strong>Pickup Window:</strong> ${currentDrop.pickupWindow || "Saturday Morning"}<br>
+                        <strong>Receipt:</strong> Check your email for your Stripe confirmation
+                    `;
+                }
+
+                if (orderSuccessModal) {
+                    orderSuccessModal.style.display = "flex";
+                }
+
+                if (btnCloseSuccessModal) {
+                    btnCloseSuccessModal.addEventListener("click", () => {
+                        orderSuccessModal.style.display = "none";
+                        // Clean query params from address bar without reloading
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    });
+                }
+            } else if (isCanceled) {
+                alert("Your bagel checkout was canceled. Your selected bagels are still in your cart if you would like to complete your order!");
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        })();
+    </script>
 </body>
 </html>

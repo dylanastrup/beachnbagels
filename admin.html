@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beach'n Bagels | Baker Admin Dashboard</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase Compat SDKs (Works universally on file://, localhost, and production) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --teal: #2A5A66;
+            --teal-dark: #1E414A;
+            --teal-light: #EBF2F4;
+            --gold: #FDBB4C;
+            --gold-hover: #f3ae3b;
+            --cream: #FDF6E9;
+            --white: #ffffff;
+            --gray-100: #f7f7f7;
+            --gray-200: #e5e5e5;
+            --gray-500: #737373;
+            --red: #e63946;
+            --green: #2a9d8f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--cream);
+            color: var(--teal);
+            font-family: 'Nunito', sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1100px;
+            margin: 0 auto 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(42, 90, 102, 0.15);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-logo {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            border: 2px solid var(--teal);
+            object-fit: cover;
+        }
+
+        h1 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.8rem;
+            color: var(--teal);
+        }
+
+        .badge-admin {
+            background-color: var(--gold);
+            color: var(--teal-dark);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Nav Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background-color: var(--white);
+            color: var(--teal);
+            border: 2px solid var(--teal);
+            border-radius: 50px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active, .tab-btn:hover {
+            background-color: var(--teal);
+            color: var(--gold);
+        }
+
+        .card {
+            background-color: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(42, 90, 102, 0.06);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--gray-200);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.35rem;
+            color: var(--teal);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 2px solid var(--teal);
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-gold {
+            background-color: var(--gold);
+            color: var(--teal);
+        }
+
+        .btn-gold:hover {
+            background-color: var(--gold-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-teal {
+            background-color: var(--teal);
+            color: var(--white);
+        }
+
+        .btn-teal:hover {
+            background-color: var(--teal-dark);
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+        }
+
+        input {
+            padding: 12px 14px;
+            border: 2px solid var(--teal);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-family: 'Nunito', sans-serif;
+            background: var(--white);
+            color: var(--teal);
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--gold);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th {
+            background-color: var(--teal-light);
+            color: var(--teal);
+            text-align: left;
+            padding: 12px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 0.95rem;
+        }
+
+        tr:hover td {
+            background-color: #fafbfc;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .status-active { background-color: #d1fae5; color: #065f46; }
+        .status-sold_out { background-color: #fee2e2; color: #991b1b; }
+        .status-closed { background-color: #e5e7eb; color: #374151; }
+        .status-draft { background-color: #fef3c7; color: #92400e; }
+        .status-archived { background-color: #ede9fe; color: #5b21b6; border: 1px dashed #8b5cf6; }
+
+        .prep-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .prep-stat-card {
+            background: var(--teal-light);
+            border: 2px solid var(--teal);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .prep-stat-number {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--teal);
+            margin: 8px 0;
+        }
+
+        .prep-stat-label {
+            font-weight: 800;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        #authGate {
+            max-width: 420px;
+            margin: 80px auto;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Simple PIN gate for Baker access -->
+    <div id="authGate" class="card">
+        <img src="favicon.png" alt="Beach'n Bagels Logo" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 15px; border: 2px solid var(--teal); object-fit: cover;">
+        <h2 style="font-family:'Fredoka',sans-serif; margin-bottom: 8px;">Baker Portal Access</h2>
+        <p style="font-size: 0.95rem; margin-bottom: 20px; opacity: 0.85;">Enter your admin passcode to manage drops, inventory, and view the prep sheet.</p>
+        
+        <form id="adminLoginForm" onsubmit="handleUnlock(event)">
+            <input type="password" id="adminPasscode" placeholder="Enter admin passcode (bagels805)" style="text-align: center; font-size: 1.1rem; width: 100%; margin-bottom: 12px;" autofocus autocomplete="current-password">
+            <button type="submit" id="unlockBtn" class="btn btn-gold" style="width: 100%;">Unlock Dashboard</button>
+        </form>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="mainDashboard" style="display: none;">
+        <header class="header">
+            <div class="header-brand">
+                <img src="favicon.png" alt="Beach'n Bagels Logo" class="header-logo">
+                <div>
+                    <h1>Baker Dashboard</h1>
+                    <p style="font-size: 0.85rem; opacity: 0.8;">Oxnard, CA • Drop & Inventory Control</p>
+                </div>
+            </div>
+            <div>
+                <span class="badge-admin">Admin Portal</span>
+                <a href="index.html" class="btn btn-teal btn-sm" style="margin-left: 10px;">View Live Site ↗</a>
+                <button onclick="handleLogout()" class="btn btn-sm" style="margin-left: 5px; background: none; border: 1px solid var(--teal); color: var(--teal);">Logout</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- Navigation Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" id="tabBtn-dropsTab" onclick="switchTab('dropsTab')">🥯 Manage Drops & Inventory</button>
+                <button class="tab-btn" id="tabBtn-prepTab" onclick="switchTab('prepTab')">📋 Kitchen Bake Sheet</button>
+                <button class="tab-btn" id="tabBtn-ordersTab" onclick="switchTab('ordersTab')">📦 Customer Orders (<span id="ordersCount">0</span>)</button>
+                <button class="tab-btn" id="tabBtn-waitlistTab" onclick="switchTab('waitlistTab')">✉️ Email Waitlist (<span id="waitlistCount">0</span>)</button>
+            </div>
+
+            <!-- Tab 1: Manage Drops & Inventory -->
+            <div id="dropsTab" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <h2 class="card-title" style="margin: 0;">Drop:</h2>
+                            <select id="dropSelector" onchange="switchDrop(this.value)" style="padding: 8px 14px; font-weight: 700; border-radius: 30px; font-size: 0.95rem; cursor: pointer; max-width: 320px;">
+                                <option value="">Loading drops...</option>
+                            </select>
+                            <label style="font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="showArchivedDropsToggle" onchange="toggleShowArchived(this.checked)" style="width: auto; cursor: pointer;">
+                                📁 Show Archived
+                            </label>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-gold" onclick="openCreateDropModal()">+ Create New Drop</button>
+                            <button class="btn btn-sm btn-teal" id="btnEditDrop" onclick="openEditDropModal()">✏️ Edit Drop</button>
+                            <button class="btn btn-sm" id="btnDeleteDrop" style="background: #fee2e2; border-color: #ef4444; color: #991b1b; padding: 6px 12px;" onclick="deleteCurrentDrop()" title="Delete this drop">🗑️</button>
+                        </div>
+                    </div>
+
+                    <div id="dropDetailsContainer">
+                        <p style="opacity: 0.7;">Connecting to Firebase database...</p>
+                    </div>
+                </div>
+
+                <!-- Flavors & Stock Table -->
+                <div class="card" id="flavorsCard">
+                    <div class="card-header">
+                        <h2 class="card-title">Drop Flavors & Inventory Caps</h2>
+                        <button class="btn btn-teal btn-sm" onclick="openAddFlavorModal()">+ Add Flavor</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Flavor Name</th>
+                                    <th>Price ($)</th>
+                                    <th>Total Baked</th>
+                                    <th>Sold</th>
+                                    <th>Remaining</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="flavorsTableBody">
+                                <tr><td colspan="7" style="text-align: center; opacity: 0.7;">No flavors configured yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Kitchen Bake Sheet -->
+            <div id="prepTab" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Baker's Morning Prep Sheet — <span id="prepSheetDropName" style="color: var(--teal-dark);">Selected Drop</span></h2>
+                            <p style="font-size: 0.85rem; opacity: 0.8;">Total bake counts aggregated across confirmed preorders for this drop.</p>
+                        </div>
+                        <button onclick="window.print()" class="btn btn-gold btn-sm">🖨️ Print Prep Sheet</button>
+                    </div>
+
+                    <div class="prep-grid" id="prepSummaryGrid">
+                        <!-- Dynamically filled with big bold totals -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Customer Orders & Pickup Checklist -->
+            <div id="ordersTab" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h2 class="card-title">Preorder Pickup Checklist</h2>
+                            <p style="font-size: 0.85rem; opacity: 0.8;" id="ordersDropSubtitle">Orders for currently selected drop.</p>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">View:</label>
+                                <select id="ordersScopeSelect" onchange="changeOrdersScope(this.value)" style="padding: 6px 12px; font-weight: 700; border-radius: 20px; font-size: 0.85rem; border: 2px solid var(--teal); background: var(--white); cursor: pointer;">
+                                    <option value="current">Current Selected Drop</option>
+                                    <option value="all">All Drops Combined</option>
+                                </select>
+                            </div>
+                            <input type="text" id="orderSearch" oninput="filterOrders()" placeholder="Search name or phone..." style="padding: 6px 12px; font-size: 0.9rem; width: 190px;">
+                        </div>
+                    </div>
+
+                    <!-- Drop Orders Stats Bar -->
+                    <div id="ordersStatsBar" style="display: flex; gap: 20px; flex-wrap: wrap; background: var(--teal-light); border: 1.5px solid var(--teal); border-radius: 12px; padding: 12px 18px; margin-bottom: 18px; font-size: 0.95rem;">
+                        <div><strong>Orders:</strong> <span id="statOrdersCount" style="font-weight: 800; color: var(--teal);">0</span></div>
+                        <div><strong>Revenue:</strong> $<span id="statRevenue" style="font-weight: 800; color: var(--teal);">0.00</span></div>
+                        <div><strong>Bagels Ordered:</strong> <span id="statBagelsCount" style="font-weight: 800; color: var(--teal);">0</span></div>
+                        <div><strong>Claimed:</strong> <span id="statPickedUpCount" style="font-weight: 800; color: var(--teal);">0 / 0</span></div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Customer Name</th>
+                                    <th>Contact</th>
+                                    <th>Items Ordered</th>
+                                    <th>Total Paid</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <tr><td colspan="6" style="text-align: center; opacity: 0.7;">No orders received yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Email Waitlist -->
+            <div id="waitlistTab" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">VIP Bagel Club / Waitlist</h2>
+                            <p style="font-size: 0.85rem; opacity: 0.8;">Early supporters to notify when preorders open.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btnCopyEmails" class="btn btn-teal btn-sm" onclick="copyAllEmails()">📋 Copy All Emails</button>
+                            <button id="btnExportCSV" class="btn btn-gold btn-sm" onclick="exportWaitlistCSV()">⬇️ Export CSV</button>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Email Address</th>
+                                    <th>Joined At</th>
+                                    <th>Source</th>
+                                </tr>
+                            </thead>
+                            <tbody id="waitlistTableBody">
+                                <tr><td colspan="3" style="text-align: center; opacity: 0.7;">Loading waitlist...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+    <!-- Add / Edit Flavor Modal -->
+    <div id="flavorModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(42, 90, 102, 0.65); backdrop-filter: blur(4px); z-index: 300; align-items: center; justify-content: center; padding: 20px;">
+        <div class="card" style="max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 0; box-shadow: 0 16px 40px rgba(0,0,0,0.25);">
+            <div class="card-header">
+                <h2 class="card-title" id="flavorModalTitle">Add New Flavor</h2>
+                <button type="button" onclick="closeFlavorModal()" style="background: none; border: none; font-size: 1.6rem; color: var(--teal); cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            </div>
+            <form id="flavorForm" onsubmit="handleSaveFlavor(event)">
+                <input type="hidden" id="modalFlavorId">
+                
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Flavor Name</label>
+                    <input type="text" id="modalFlavorName" placeholder="e.g. Rosemary Sea Salt, Cinnamon Raisin" required style="width: 100%;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Price ($)</label>
+                        <input type="number" step="0.25" min="0" id="modalFlavorPrice" placeholder="3.50" required style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Bake Goal (Total Stock)</label>
+                        <input type="number" step="1" min="0" id="modalFlavorTotal" placeholder="48" required style="width: 100%;">
+                    </div>
+                </div>
+
+                <div id="modalSoldCountGroup" style="display: none; margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Sold / Preordered Count</label>
+                    <input type="number" step="1" min="0" id="modalFlavorSold" placeholder="0" style="width: 100%;">
+                    <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 4px;">Remaining = Total Stock - Sold</p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Description / Notes (Optional)</label>
+                    <input type="text" id="modalFlavorDesc" placeholder="e.g. Hand-rolled with organic raisins and Vietnamese cinnamon" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn" style="background: var(--gray-200); color: #333; border-color: var(--gray-500);" onclick="closeFlavorModal()">Cancel</button>
+                    <button type="submit" class="btn btn-gold" id="btnSaveFlavor">Save Flavor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create / Edit Drop Modal -->
+    <div id="dropModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(42, 90, 102, 0.65); backdrop-filter: blur(4px); z-index: 300; align-items: center; justify-content: center; padding: 20px;">
+        <div class="card" style="max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 0; box-shadow: 0 16px 40px rgba(0,0,0,0.25);">
+            <div class="card-header">
+                <h2 class="card-title" id="dropModalTitle">Create New Pop-up Drop</h2>
+                <button type="button" onclick="closeDropModal()" style="background: none; border: none; font-size: 1.6rem; color: var(--teal); cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            </div>
+            <form id="dropForm" onsubmit="handleSaveDrop(event)">
+                <input type="hidden" id="modalDropId">
+                
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Drop Title</label>
+                    <input type="text" id="modalDropTitle" placeholder="e.g. Pop-Up Drop #2: Silver Strand" required style="width: 100%;">
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Pickup Date & Time Window</label>
+                    <input type="text" id="modalDropWindow" placeholder="e.g. Saturday, Oct 25 • 8:00 AM - 11:00 AM" required style="width: 100%;">
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Pickup Location</label>
+                    <input type="text" id="modalDropLocation" placeholder="e.g. Silver Strand Beach (Near Jetty), Oxnard, CA" required style="width: 100%;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Preorder Cutoff Date & Time</label>
+                        <input type="datetime-local" id="modalDropCutoff" required style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Drop Status</label>
+                        <select id="modalDropStatus" style="width: 100%;">
+                            <option value="active">Active (Live for preorders)</option>
+                            <option value="draft">Draft (Hidden from customers)</option>
+                            <option value="closed">Closed (Preorders finished)</option>
+                            <option value="sold_out">Sold Out</option>
+                            <option value="archived">📁 Archived (Past drop / Completed)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="starterFlavorsOption" style="margin-bottom: 20px; background: var(--teal-light); padding: 12px; border-radius: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer;">
+                        <input type="checkbox" id="modalIncludeStarters" checked style="width: auto;">
+                        Include starter flavors (Everything, Plain, Sesame, Jalapeño Cheddar, Schmear)
+                    </label>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn" style="background: var(--gray-200); color: #333; border-color: var(--gray-500);" onclick="closeDropModal()">Cancel</button>
+                    <button type="submit" class="btn btn-gold" id="btnSaveDrop">Save Drop</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // 1. Admin Authentication Logic
+        const ADMIN_PIN = "bagels805";
+        const authGate = document.getElementById("authGate");
+        const mainDashboard = document.getElementById("mainDashboard");
+
+        function handleUnlock(e) {
+            if (e) e.preventDefault();
+            const entered = document.getElementById("adminPasscode").value.trim();
+            if (entered === ADMIN_PIN) {
+                sessionStorage.setItem("bb_admin_auth", "true");
+                authGate.style.display = "none";
+                mainDashboard.style.display = "block";
+                initFirebase();
+            } else {
+                alert("Incorrect admin passcode. Please enter: bagels805");
+            }
+        }
+
+        function handleLogout() {
+            sessionStorage.removeItem("bb_admin_auth");
+            location.reload();
+        }
+
+        // Auto-unlock if session exists
+        if (sessionStorage.getItem("bb_admin_auth") === "true") {
+            authGate.style.display = "none";
+            mainDashboard.style.display = "block";
+            window.addEventListener("DOMContentLoaded", initFirebase);
+        }
+
+        // 2. Tab Navigation
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-content").forEach(el => el.style.display = "none");
+            document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+            document.getElementById(tabId).style.display = "block";
+            const btn = document.getElementById("tabBtn-" + tabId);
+            if (btn) btn.classList.add("active");
+        }
+
+        // 3. Firebase Initialization
+        let db = null;
+        let currentDropId = null;
+        let dropFlavors = [];
+        let allOrders = [];
+        let waitlistEmails = [];
+        let showArchivedDrops = false;
+        let ordersScope = 'current';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAEOwp0RdxMkxXdBx6yJlhPhoXq6Vbi3Do",
+            authDomain: "beachnbagels.firebaseapp.com",
+            projectId: "beachnbagels",
+            storageBucket: "beachnbagels.firebasestorage.app",
+            messagingSenderId: "697659238755",
+            appId: "1:697659238755:web:58ebee2e4195cdc8744b56",
+            measurementId: "G-QWJ8540ZXF"
+        };
+
+        function initFirebase() {
+            if (db) return; // Already initialized
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.firestore();
+                console.log("Firebase initialized successfully");
+                startListeners();
+            } catch (err) {
+                console.error("Firebase init error:", err);
+                document.getElementById("dropDetailsContainer").innerHTML = `
+                    <div style="background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px;">
+                        <strong>Firebase Notice:</strong> ${err.message}. Make sure your Firestore Database is created in the Firebase console.
+                    </div>
+                `;
+            }
+        }
+
+        function startListeners() {
+            listenToDrops();
+            listenToOrders();
+            listenToWaitlist();
+        }
+
+        let allDrops = [];
+
+        // Listen to all Drops
+        function listenToDrops() {
+            db.collection("drops").onSnapshot((snapshot) => {
+                if (snapshot.empty) {
+                    allDrops = [];
+                    currentDropId = null;
+                    populateDropSelector();
+                    renderEmptyDrop();
+                    updateDropScopedViews();
+                    return;
+                }
+
+                allDrops = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // If no drop selected or selected drop was deleted, pick the active one or first non-archived
+                if (!currentDropId || !allDrops.some(d => d.id === currentDropId)) {
+                    const preferredDrop = allDrops.find(d => d.status === "active") 
+                        || allDrops.find(d => d.status !== "archived") 
+                        || allDrops[0];
+                    currentDropId = preferredDrop ? preferredDrop.id : null;
+                }
+
+                populateDropSelector();
+                
+                const selectedDrop = allDrops.find(d => d.id === currentDropId);
+                if (selectedDrop) {
+                    renderDropDetails(currentDropId, selectedDrop);
+                    listenToFlavors(currentDropId);
+                    updateDropScopedViews();
+                }
+            }, (error) => {
+                console.error("Error listening to drops:", error);
+                document.getElementById("dropDetailsContainer").innerHTML = `
+                    <p style="color:#d9383a;">Notice: ${error.message}</p>
+                `;
+            });
+        }
+
+        function populateDropSelector() {
+            const selector = document.getElementById("dropSelector");
+            const btnEdit = document.getElementById("btnEditDrop");
+            const btnDelete = document.getElementById("btnDeleteDrop");
+
+            if (allDrops.length === 0) {
+                selector.innerHTML = `<option value="">No Drops Available</option>`;
+                if (btnEdit) btnEdit.style.display = "none";
+                if (btnDelete) btnDelete.style.display = "none";
+                return;
+            }
+
+            if (btnEdit) btnEdit.style.display = "inline-flex";
+            if (btnDelete) btnDelete.style.display = "inline-flex";
+
+            const activeDrops = allDrops.filter(d => d.status !== "archived");
+            const archivedDrops = allDrops.filter(d => d.status === "archived");
+
+            let html = "";
+            if (showArchivedDrops) {
+                if (activeDrops.length > 0) {
+                    html += `<optgroup label="Active Drops (${activeDrops.length})">`;
+                    html += activeDrops.map(d => {
+                        const statusTag = d.status === "active" ? "🟢 LIVE" : `[${(d.status || 'draft').toUpperCase()}]`;
+                        return `<option value="${d.id}" ${d.id === currentDropId ? 'selected' : ''}>${d.title || "Drop"} - ${statusTag}</option>`;
+                    }).join("");
+                    html += `</optgroup>`;
+                }
+                if (archivedDrops.length > 0) {
+                    html += `<optgroup label="📁 Archived Past Drops (${archivedDrops.length})">`;
+                    html += archivedDrops.map(d => {
+                        return `<option value="${d.id}" ${d.id === currentDropId ? 'selected' : ''}>📁 ${d.title || "Drop"} [ARCHIVED]</option>`;
+                    }).join("");
+                    html += `</optgroup>`;
+                }
+            } else {
+                let visible = [...activeDrops];
+                const currentIsArchived = archivedDrops.find(d => d.id === currentDropId);
+                if (currentIsArchived) {
+                    visible.push(currentIsArchived);
+                }
+                html = visible.map(d => {
+                    const isArch = d.status === "archived";
+                    const statusTag = isArch ? "📁 [ARCHIVED]" : (d.status === "active" ? "🟢 LIVE" : `[${(d.status || 'draft').toUpperCase()}]`);
+                    return `<option value="${d.id}" ${d.id === currentDropId ? 'selected' : ''}>${isArch ? '📁 ' : ''}${d.title || "Drop"} - ${statusTag}</option>`;
+                }).join("");
+            }
+            selector.innerHTML = html;
+        }
+
+        window.toggleShowArchived = function(checked) {
+            showArchivedDrops = !!checked;
+            populateDropSelector();
+        };
+
+        window.switchDrop = function(dropId) {
+            if (!dropId || dropId === currentDropId) return;
+            currentDropId = dropId;
+            const drop = allDrops.find(d => d.id === currentDropId);
+            if (drop) {
+                renderDropDetails(currentDropId, drop);
+                listenToFlavors(currentDropId);
+                updateDropScopedViews();
+            }
+        };
+
+        function renderDropDetails(id, drop) {
+            const container = document.getElementById("dropDetailsContainer");
+            const cutoff = drop.cutoffAt ? new Date(drop.cutoffAt.toDate ? drop.cutoffAt.toDate() : drop.cutoffAt).toLocaleString() : "Not set";
+            const isArchived = drop.status === "archived";
+            
+            container.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:15px; margin-bottom:15px;">
+                    <div>
+                        <h3 style="font-family:'Fredoka',sans-serif; font-size:1.4rem;">${drop.title || "Pop-Up Drop"}</h3>
+                        <p style="margin:4px 0;">📍 <strong>Pickup:</strong> ${drop.pickupLocation || "Silver Strand Beach, Oxnard"}</p>
+                        <p style="margin:4px 0;">⏰ <strong>Window:</strong> ${drop.pickupWindow || "Saturday, 8:00 AM - 11:00 AM"}</p>
+                        <p style="margin:4px 0;">⏳ <strong>Preorder Cutoff:</strong> ${cutoff}</p>
+                    </div>
+                    <div>
+                        <span class="status-pill status-${drop.status || 'draft'}">${(drop.status || 'draft').replace('_', ' ')}</span>
+                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                            ${!isArchived ? `
+                                <button id="toggleStatusBtn" class="btn btn-sm btn-teal" onclick="toggleDropStatus('${id}', '${drop.status}')">
+                                    ${drop.status === 'active' ? '⏸️ Pause Preorders' : '▶️ Set as Live Drop'}
+                                </button>
+                                <button class="btn btn-sm" style="background:#ede9fe; border-color:#8b5cf6; color:#5b21b6;" onclick="toggleArchiveDrop('${id}', false)">
+                                    📁 Archive Drop
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-gold" onclick="toggleArchiveDrop('${id}', true)">
+                                    📂 Unarchive Drop
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.toggleDropStatus = async function(id, currentStatus) {
+            const nextStatus = currentStatus === "active" ? "closed" : "active";
+            // If activating, pause other drops so only one drop is live on the storefront
+            if (nextStatus === "active") {
+                for (const other of allDrops) {
+                    if (other.id !== id && other.status === "active") {
+                        await db.collection("drops").doc(other.id).update({ status: "closed" });
+                    }
+                }
+            }
+            await db.collection("drops").doc(id).update({ status: nextStatus });
+        };
+
+        window.toggleArchiveDrop = async function(id, isCurrentlyArchived) {
+            if (!isCurrentlyArchived) {
+                const confirmed = confirm("Archive this drop?\\n\\nArchiving hides this drop from active operations and customer preorders, while safely keeping all order history and customer records intact.");
+                if (!confirmed) return;
+                await db.collection("drops").doc(id).update({ status: "archived" });
+            } else {
+                await db.collection("drops").doc(id).update({ status: "closed" });
+            }
+        };
+
+        function renderEmptyDrop() {
+            const container = document.getElementById("dropDetailsContainer");
+            container.innerHTML = `
+                <div style="text-align: center; padding: 25px;">
+                    <p style="margin-bottom: 15px; opacity: 0.8; font-size: 1.05rem;">No pop-up drops found.</p>
+                    <button class="btn btn-gold" onclick="openCreateDropModal()">🥯 Create New Pop-up Drop</button>
+                </div>
+            `;
+        }
+
+        // Open Modal to Create Drop
+        window.openCreateDropModal = function() {
+            document.getElementById("dropModalTitle").textContent = "Create New Pop-up Drop";
+            document.getElementById("modalDropId").value = "";
+            
+            const nextNumber = allDrops.length + 1;
+            document.getElementById("modalDropTitle").value = `Pop-Up Drop #${nextNumber}: Silver Strand`;
+            document.getElementById("modalDropWindow").value = "Saturday 8:00 AM - 11:00 AM";
+            document.getElementById("modalDropLocation").value = "Silver Strand Beach (Near Jetty), Oxnard, CA";
+            
+            // Default cutoff to upcoming Friday noon
+            const friday = new Date();
+            friday.setDate(friday.getDate() + ((5 + 7 - friday.getDay()) % 7 || 7));
+            friday.setHours(12, 0, 0, 0);
+            
+            const tzOffset = friday.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(friday.getTime() - tzOffset)).toISOString().slice(0, 16);
+            document.getElementById("modalDropCutoff").value = localISOTime;
+
+            document.getElementById("modalDropStatus").value = "active";
+            document.getElementById("starterFlavorsOption").style.display = "block";
+            document.getElementById("modalIncludeStarters").checked = true;
+            document.getElementById("btnSaveDrop").textContent = "Create Drop";
+            document.getElementById("dropModal").style.display = "flex";
+            document.getElementById("modalDropTitle").focus();
+        };
+
+        // Open Modal to Edit Drop
+        window.openEditDropModal = function() {
+            const drop = allDrops.find(d => d.id === currentDropId);
+            if (!drop) return alert("Please select a drop first.");
+
+            document.getElementById("dropModalTitle").textContent = "Edit Drop: " + (drop.title || "");
+            document.getElementById("modalDropId").value = drop.id;
+            document.getElementById("modalDropTitle").value = drop.title || "";
+            document.getElementById("modalDropWindow").value = drop.pickupWindow || "";
+            document.getElementById("modalDropLocation").value = drop.pickupLocation || "";
+
+            if (drop.cutoffAt) {
+                const dateObj = new Date(drop.cutoffAt.toDate ? drop.cutoffAt.toDate() : drop.cutoffAt);
+                const tzOffset = dateObj.getTimezoneOffset() * 60000;
+                document.getElementById("modalDropCutoff").value = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
+            } else {
+                document.getElementById("modalDropCutoff").value = "";
+            }
+
+            document.getElementById("modalDropStatus").value = drop.status || "active";
+            document.getElementById("starterFlavorsOption").style.display = "none";
+            document.getElementById("btnSaveDrop").textContent = "Update Drop";
+            document.getElementById("dropModal").style.display = "flex";
+        };
+
+        window.closeDropModal = function() {
+            document.getElementById("dropModal").style.display = "none";
+        };
+
+        // Handle Save Drop (Create or Edit)
+        window.handleSaveDrop = async function(e) {
+            e.preventDefault();
+            const dropId = document.getElementById("modalDropId").value;
+            const title = document.getElementById("modalDropTitle").value.trim();
+            const pickupWindow = document.getElementById("modalDropWindow").value.trim();
+            const pickupLocation = document.getElementById("modalDropLocation").value.trim();
+            const cutoffRaw = document.getElementById("modalDropCutoff").value;
+            const status = document.getElementById("modalDropStatus").value;
+            const includeStarters = document.getElementById("modalIncludeStarters").checked;
+
+            const cutoffDate = cutoffRaw ? new Date(cutoffRaw) : null;
+            const btn = document.getElementById("btnSaveDrop");
+            btn.disabled = true;
+            btn.textContent = "Saving...";
+
+            try {
+                // If setting to active, close other active drops
+                if (status === "active") {
+                    for (const other of allDrops) {
+                        if (other.id !== dropId && other.status === "active") {
+                            await db.collection("drops").doc(other.id).update({ status: "closed" });
+                        }
+                    }
+                }
+
+                if (dropId) {
+                    await db.collection("drops").doc(dropId).update({
+                        title,
+                        pickupWindow,
+                        pickupLocation,
+                        cutoffAt: cutoffDate,
+                        status
+                    });
+                } else {
+                    const newDropRef = await db.collection("drops").add({
+                        title,
+                        pickupWindow,
+                        pickupLocation,
+                        cutoffAt: cutoffDate,
+                        status,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    if (includeStarters) {
+                        const starterFlavors = [
+                            { name: "Everything", price: 3.50, totalInventory: 48, soldCount: 0, description: "Topped with toasted garlic, onion, sesame, poppy seeds, and sea salt" },
+                            { name: "Plain", price: 3.50, totalInventory: 48, soldCount: 0, description: "Classic hand-rolled, chewy boiled-and-baked bagel" },
+                            { name: "Sesame", price: 3.50, totalInventory: 36, soldCount: 0, description: "Crusted with nutty toasted sesame seeds" },
+                            { name: "Jalapeño Cheddar", price: 4.00, totalInventory: 24, soldCount: 0, description: "Fresh sliced jalapeños with sharp melted cheddar" },
+                            { name: "Scallion Schmear (8oz)", price: 5.00, totalInventory: 30, soldCount: 0, description: "Whipped cream cheese with fresh crisp scallions" }
+                        ];
+
+                        for (const fl of starterFlavors) {
+                            await db.collection("drops").doc(newDropRef.id).collection("flavors").add(fl);
+                        }
+                    }
+
+                    currentDropId = newDropRef.id;
+                }
+
+                closeDropModal();
+            } catch (err) {
+                console.error("Error saving drop:", err);
+                alert("Error saving drop: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = dropId ? "Update Drop" : "Create Drop";
+            }
+        };
+
+        window.deleteCurrentDrop = async function() {
+            const drop = allDrops.find(d => d.id === currentDropId);
+            if (!drop) return;
+
+            const confirmed = confirm(`Are you sure you want to delete "${drop.title}"?\n\nThis will permanently delete this drop and its flavor inventory.`);
+            if (!confirmed) return;
+
+            try {
+                await db.collection("drops").doc(currentDropId).delete();
+                currentDropId = null;
+            } catch (err) {
+                console.error("Error deleting drop:", err);
+                alert("Error deleting drop: " + err.message);
+            }
+        };
+
+        // Listen to Flavors
+        function listenToFlavors(dropId) {
+            db.collection("drops").doc(dropId).collection("flavors").onSnapshot((snapshot) => {
+                dropFlavors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderFlavorsTable(dropFlavors);
+                renderBakeSheet(dropFlavors);
+            });
+        }
+
+        function renderFlavorsTable(flavors) {
+            const tbody = document.getElementById("flavorsTableBody");
+            if (flavors.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; opacity: 0.7;">No flavors configured.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = flavors.map(fl => {
+                const sold = fl.soldCount || 0;
+                const total = fl.totalInventory || 0;
+                const remaining = Math.max(0, total - sold);
+                const isSoldOut = remaining <= 0;
+                const escapedName = (fl.name || "").replace(/'/g, "\\'");
+
+                return `
+                    <tr>
+                        <td>
+                            <strong>${fl.name}</strong>
+                            ${fl.description ? `<div style="font-size:0.8rem; opacity:0.75; margin-top:2px;">${fl.description}</div>` : ''}
+                        </td>
+                        <td>$${(fl.price || 0).toFixed(2)}</td>
+                        <td>${total}</td>
+                        <td>${sold}</td>
+                        <td><strong style="color: ${isSoldOut ? 'var(--red)' : 'inherit'};">${remaining}</strong></td>
+                        <td>
+                            <span class="status-pill status-${isSoldOut ? 'sold_out' : 'active'}">
+                                ${isSoldOut ? 'SOLD OUT' : 'IN STOCK'}
+                            </span>
+                        </td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button class="btn btn-sm btn-teal" onclick="adjustInventory('${fl.id}', 6)" title="Add 6 to bake total">+6</button>
+                            <button class="btn btn-sm btn-teal" onclick="adjustInventory('${fl.id}', -6)" title="Subtract 6 from bake total">-6</button>
+                            <button class="btn btn-sm btn-gold" onclick="openEditFlavorModal('${fl.id}')" title="Edit flavor details">✏️ Edit</button>
+                            <button class="btn btn-sm" style="background:#fee2e2; border-color:#ef4444; color:#991b1b; padding:6px 10px;" onclick="deleteFlavor('${fl.id}', '${escapedName}')" title="Delete flavor">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        window.adjustInventory = async function(flavorId, delta) {
+            const fl = dropFlavors.find(f => f.id === flavorId);
+            if (!fl || !currentDropId) return;
+            const newTotal = Math.max(0, (fl.totalInventory || 0) + delta);
+            await db.collection("drops").doc(currentDropId).collection("flavors").doc(flavorId).update({
+                totalInventory: newTotal
+            });
+        };
+
+        window.openAddFlavorModal = function() {
+            if (!currentDropId) return alert("Please create an active drop first.");
+            document.getElementById("flavorModalTitle").textContent = "Add New Flavor";
+            document.getElementById("modalFlavorId").value = "";
+            document.getElementById("modalFlavorName").value = "";
+            document.getElementById("modalFlavorPrice").value = "3.50";
+            document.getElementById("modalFlavorTotal").value = "36";
+            document.getElementById("modalFlavorDesc").value = "";
+            document.getElementById("modalSoldCountGroup").style.display = "none";
+            document.getElementById("modalFlavorSold").value = "0";
+            document.getElementById("btnSaveFlavor").textContent = "Add Flavor";
+            document.getElementById("flavorModal").style.display = "flex";
+            document.getElementById("modalFlavorName").focus();
+        };
+
+        window.openEditFlavorModal = function(flavorId) {
+            const fl = dropFlavors.find(f => f.id === flavorId);
+            if (!fl) return;
+            document.getElementById("flavorModalTitle").textContent = "Edit Flavor: " + fl.name;
+            document.getElementById("modalFlavorId").value = fl.id;
+            document.getElementById("modalFlavorName").value = fl.name || "";
+            document.getElementById("modalFlavorPrice").value = fl.price || 0;
+            document.getElementById("modalFlavorTotal").value = fl.totalInventory || 0;
+            document.getElementById("modalFlavorDesc").value = fl.description || "";
+            document.getElementById("modalSoldCountGroup").style.display = "block";
+            document.getElementById("modalFlavorSold").value = fl.soldCount || 0;
+            document.getElementById("btnSaveFlavor").textContent = "Update Flavor";
+            document.getElementById("flavorModal").style.display = "flex";
+        };
+
+        window.closeFlavorModal = function() {
+            document.getElementById("flavorModal").style.display = "none";
+        };
+
+        window.handleSaveFlavor = async function(e) {
+            e.preventDefault();
+            if (!currentDropId) return alert("No active drop found.");
+
+            const flavorId = document.getElementById("modalFlavorId").value;
+            const name = document.getElementById("modalFlavorName").value.trim();
+            const price = parseFloat(document.getElementById("modalFlavorPrice").value) || 0;
+            const totalInventory = parseInt(document.getElementById("modalFlavorTotal").value, 10) || 0;
+            const description = document.getElementById("modalFlavorDesc").value.trim();
+            const soldCount = parseInt(document.getElementById("modalFlavorSold").value, 10) || 0;
+
+            const btn = document.getElementById("btnSaveFlavor");
+            btn.disabled = true;
+            btn.textContent = "Saving...";
+
+            try {
+                if (flavorId) {
+                    await db.collection("drops").doc(currentDropId).collection("flavors").doc(flavorId).update({
+                        name,
+                        price,
+                        totalInventory,
+                        soldCount,
+                        description
+                    });
+                } else {
+                    await db.collection("drops").doc(currentDropId).collection("flavors").add({
+                        name,
+                        price,
+                        totalInventory,
+                        soldCount: 0,
+                        description,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                closeFlavorModal();
+            } catch (err) {
+                console.error("Error saving flavor:", err);
+                alert("Error saving flavor: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = flavorId ? "Update Flavor" : "Add Flavor";
+            }
+        };
+
+        window.deleteFlavor = async function(flavorId, flavorName) {
+            if (!currentDropId) return;
+            const confirmed = confirm(`Are you sure you want to delete "${flavorName}"?\n\nThis will remove it from the drop and preorder menu.`);
+            if (!confirmed) return;
+
+            try {
+                await db.collection("drops").doc(currentDropId).collection("flavors").doc(flavorId).delete();
+            } catch (err) {
+                console.error("Error deleting flavor:", err);
+                alert("Error deleting flavor: " + err.message);
+            }
+        };
+
+        // Render Kitchen Bake Sheet
+        function renderBakeSheet(flavors) {
+            const grid = document.getElementById("prepSummaryGrid");
+            if (!flavors || flavors.length === 0) {
+                grid.innerHTML = `<p style="opacity: 0.7;">No inventory items configured for this drop yet.</p>`;
+                return;
+            }
+
+            let totalSold = 0;
+            flavors.forEach(fl => totalSold += (fl.soldCount || 0));
+
+            let html = `
+                <div class="prep-stat-card" style="border-color: var(--gold); background: #fffdf5;">
+                    <div class="prep-stat-label" style="color: #92400e;">TOTAL TO PREP</div>
+                    <div class="prep-stat-number" style="color: #b45309;">${totalSold}</div>
+                    <div style="font-size: 0.8rem; opacity: 0.8; font-weight: 700;">All Items Combined</div>
+                </div>
+            `;
+
+            html += flavors.map(fl => {
+                const sold = fl.soldCount || 0;
+                return `
+                    <div class="prep-stat-card">
+                        <div class="prep-stat-label">${fl.name}</div>
+                        <div class="prep-stat-number">${sold}</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">Preordered / To Bake</div>
+                    </div>
+                `;
+            }).join("");
+
+            grid.innerHTML = html;
+        }
+
+        // Listen to Orders
+        function listenToOrders() {
+            db.collection("orders").onSnapshot((snapshot) => {
+                allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateDropScopedViews();
+            }, (err) => {
+                console.log("Orders listener notice:", err);
+            });
+        }
+
+        window.changeOrdersScope = function(scope) {
+            ordersScope = scope;
+            updateDropScopedViews();
+        };
+
+        function updateDropScopedViews() {
+            const currentDrop = allDrops.find(d => d.id === currentDropId);
+            const dropTitle = currentDrop ? (currentDrop.title || "Selected Drop") : "Selected Drop";
+
+            // 1. Kitchen prep sheet drop title
+            const prepDropName = document.getElementById("prepSheetDropName");
+            if (prepDropName) prepDropName.textContent = dropTitle;
+
+            // 2. Orders subtitle
+            const ordersDropSubtitle = document.getElementById("ordersDropSubtitle");
+            if (ordersDropSubtitle) {
+                if (ordersScope === "current") {
+                    ordersDropSubtitle.innerHTML = `Viewing orders for: <strong style="color:var(--teal);">${dropTitle}</strong>`;
+                } else {
+                    ordersDropSubtitle.textContent = `Viewing all orders combined across all drops (${allDrops.length} drops).`;
+                }
+            }
+
+            // 3. Filter orders by scope
+            const scopedOrders = getScopedOrders();
+
+            // 4. Update stats bar
+            updateOrdersStats(scopedOrders);
+
+            // 5. Update Tab 3 badge count
+            const badge = document.getElementById("ordersCount");
+            if (badge) {
+                if (ordersScope === "current") {
+                    badge.textContent = scopedOrders.length;
+                } else {
+                    badge.textContent = allOrders.length;
+                }
+            }
+
+            // 6. Render table (taking search query into account)
+            filterOrders();
+        }
+
+        function getScopedOrders() {
+            if (ordersScope === "all") {
+                return allOrders;
+            }
+            if (!currentDropId) return [];
+            return allOrders.filter(o => o.dropId === currentDropId);
+        }
+
+        function updateOrdersStats(orders) {
+            const countEl = document.getElementById("statOrdersCount");
+            const revEl = document.getElementById("statRevenue");
+            const bagelsEl = document.getElementById("statBagelsCount");
+            const pickupEl = document.getElementById("statPickedUpCount");
+
+            const totalOrders = orders.length;
+            let totalRevenue = 0;
+            let totalBagels = 0;
+            let pickedUpCount = 0;
+
+            orders.forEach(o => {
+                totalRevenue += (o.amountTotal || 0);
+                if (o.pickupStatus === "picked_up") {
+                    pickedUpCount++;
+                }
+                if (Array.isArray(o.items)) {
+                    o.items.forEach(item => {
+                        totalBagels += (item.quantity || 0);
+                    });
+                }
+            });
+
+            if (countEl) countEl.textContent = totalOrders;
+            if (revEl) revEl.textContent = totalRevenue.toFixed(2);
+            if (bagelsEl) bagelsEl.textContent = totalBagels;
+            if (pickupEl) pickupEl.textContent = `${pickedUpCount} / ${totalOrders}`;
+        }
+
+        function renderOrdersTable(orders) {
+            const tbody = document.getElementById("ordersTableBody");
+            if (orders.length === 0) {
+                const msg = ordersScope === "current" ? "No preorders found for this drop yet." : "No orders found.";
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; opacity: 0.7; padding: 24px;">${msg}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = orders.map(order => {
+                const isPickedUp = order.pickupStatus === "picked_up";
+                const itemsSummary = (order.items || []).map(i => `${i.quantity}x ${i.flavorName || i.name}`).join(", ");
+                const orderDrop = allDrops.find(d => d.id === order.dropId);
+                const dropTag = (ordersScope === "all" && orderDrop) ? `<div style="font-size:0.75rem; color:var(--teal); font-weight:700; margin-top:3px;">📍 ${orderDrop.title}</div>` : '';
+
+                return `
+                    <tr>
+                        <td>
+                            <span class="status-pill status-${isPickedUp ? 'active' : 'draft'}">
+                                ${isPickedUp ? 'PICKED UP' : 'UNCLAIMED'}
+                            </span>
+                        </td>
+                        <td>
+                            <strong>${order.customerName || "Customer"}</strong>
+                            ${dropTag}
+                        </td>
+                        <td>
+                            <div>${order.customerEmail || ""}</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8;">${order.customerPhone || ""}</div>
+                        </td>
+                        <td>${itemsSummary || "Bagel Order"}</td>
+                        <td>$${(order.amountTotal || 0).toFixed(2)}</td>
+                        <td>
+                            <button class="btn btn-sm ${isPickedUp ? 'btn-teal' : 'btn-gold'}" onclick="togglePickup('${order.id}', '${order.pickupStatus}')">
+                                ${isPickedUp ? 'Mark Unclaimed' : '✓ Mark Picked Up'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        window.togglePickup = async function(orderId, currentStatus) {
+            const next = currentStatus === "picked_up" ? "unclaimed" : "picked_up";
+            await db.collection("orders").doc(orderId).update({ pickupStatus: next });
+        };
+
+        window.filterOrders = function() {
+            const term = (document.getElementById("orderSearch").value || "").toLowerCase().trim();
+            const scoped = getScopedOrders();
+            const filtered = scoped.filter(o => {
+                if (!term) return true;
+                const nameMatch = o.customerName && o.customerName.toLowerCase().includes(term);
+                const emailMatch = o.customerEmail && o.customerEmail.toLowerCase().includes(term);
+                const phoneMatch = o.customerPhone && o.customerPhone.toLowerCase().includes(term);
+                return nameMatch || emailMatch || phoneMatch;
+            });
+            renderOrdersTable(filtered);
+        };
+
+        // Listen to Waitlist
+        let waitlistData = [];
+        function listenToWaitlist() {
+            db.collection("waitlist").onSnapshot((snapshot) => {
+                document.getElementById("waitlistCount").textContent = snapshot.size;
+                waitlistEmails = [];
+                waitlistData = [];
+                
+                const tbody = document.getElementById("waitlistTableBody");
+                if (snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; opacity: 0.7;">No subscribers yet.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = snapshot.docs.map(docSnap => {
+                    const data = docSnap.data();
+                    if (data.email) waitlistEmails.push(data.email);
+                    const date = data.createdAt ? new Date(data.createdAt.toDate ? data.createdAt.toDate() : data.createdAt).toLocaleString() : "Recent";
+                    waitlistData.push({
+                        email: data.email || "",
+                        date: date,
+                        source: data.source || "Landing Page"
+                    });
+
+                    return `
+                        <tr>
+                            <td><strong>${data.email || ""}</strong></td>
+                            <td>${date}</td>
+                            <td><span style="opacity: 0.7;">${data.source || "Landing Page"}</span></td>
+                        </tr>
+                    `;
+                }).join("");
+            }, (err) => {
+                console.log("Waitlist notice:", err);
+            });
+        }
+
+        window.copyAllEmails = function() {
+            if (waitlistEmails.length === 0) return alert("No emails to copy yet.");
+            navigator.clipboard.writeText(waitlistEmails.join(", "));
+            alert(`Copied ${waitlistEmails.length} email addresses to clipboard!`);
+        };
+
+        window.exportWaitlistCSV = function() {
+            if (waitlistData.length === 0) return alert("No waitlist subscribers to export yet.");
+            let csvContent = "data:text/csv;charset=utf-8,Email,Joined At,Source\n";
+            waitlistData.forEach(row => {
+                csvContent += `"${row.email}","${row.date}","${row.source}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `beachnbagels_subscribers_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
+</body>
+</html>
