@@ -1268,9 +1268,12 @@
                         </td>
                         <td>${itemsSummary || "Bagel Order"}</td>
                         <td>$${(order.amountTotal || 0).toFixed(2)}</td>
-                        <td>
+                        <td style="white-space: nowrap;">
                             <button class="btn btn-sm ${isPickedUp ? 'btn-teal' : 'btn-gold'}" onclick="togglePickup('${order.id}', '${order.pickupStatus}')">
                                 ${isPickedUp ? 'Mark Unclaimed' : '✓ Mark Picked Up'}
+                            </button>
+                            <button class="btn btn-sm" style="background:#fee2e2; border-color:#ef4444; color:#991b1b; padding:6px 10px; margin-left: 6px;" onclick="deleteOrder('${order.id}')" title="Delete this order">
+                                🗑️
                             </button>
                         </td>
                     </tr>
@@ -1281,6 +1284,44 @@
         window.togglePickup = async function(orderId, currentStatus) {
             const next = currentStatus === "picked_up" ? "unclaimed" : "picked_up";
             await db.collection("orders").doc(orderId).update({ pickupStatus: next });
+        };
+
+        window.deleteOrder = async function(orderId) {
+            const order = allOrders.find(o => o.id === orderId);
+            if (!order) return;
+
+            const custName = order.customerName || "this customer";
+            const amount = (order.amountTotal || 0).toFixed(2);
+
+            const confirmed = confirm(`Are you sure you want to permanently delete the order for "${custName}" ($${amount})?\\n\\nThis will remove it from the checklist and drop revenue stats.`);
+            if (!confirmed) return;
+
+            const restoreInventory = confirm(`Would you also like to restore the flavor inventory for this order?\\n\\n• Click "OK" to add these bagels back to inventory (decrement sold counts).\\n• Click "Cancel" to delete the order without changing inventory counts.`);
+
+            try {
+                if (restoreInventory && order.dropId && Array.isArray(order.items)) {
+                    for (const item of order.items) {
+                        if (item.flavorId && item.quantity) {
+                            try {
+                                const flavorRef = db.collection("drops").doc(order.dropId).collection("flavors").doc(item.flavorId);
+                                const flavorDoc = await flavorRef.get();
+                                if (flavorDoc.exists) {
+                                    const currentSold = flavorDoc.data().soldCount || 0;
+                                    const newSold = Math.max(0, currentSold - item.quantity);
+                                    await flavorRef.update({ soldCount: newSold });
+                                }
+                            } catch (flErr) {
+                                console.warn("Could not adjust inventory for flavor:", item.flavorId, flErr);
+                            }
+                        }
+                    }
+                }
+
+                await db.collection("orders").doc(orderId).delete();
+            } catch (err) {
+                console.error("Error deleting order:", err);
+                alert("Error deleting order: " + err.message);
+            }
         };
 
         window.filterOrders = function() {

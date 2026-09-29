@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+
+    // 1. Email Waitlist
+    // Public visitors can add their email. Admin dashboard can read and delete entries.
+    match /waitlist/{entryId} {
+      allow create: if request.resource.data.email is string && 
+                       request.resource.data.email.size() > 3 &&
+                       request.resource.data.email.size() <= 254;
+      allow read, delete: if true;
+      allow update: if false;
+    }
+
+    // 2. Drops & Flavors
+    // Public visitors can view drops and flavor inventory. Baker can manage drops and stock.
+    match /drops/{dropId} {
+      allow read, write: if true;
+
+      match /flavors/{flavorId} {
+        allow read, write: if true;
+      }
+    }
+
+    // 3. Preorders
+    // Orders are strictly created by Cloud Functions (create disallowed for clients).
+    // Admin dashboard can read orders and toggle pickup status.
+    match /orders/{orderId} {
+      allow read, update, delete: if true;
+      allow create: if false;
+    }
+
+    // 4. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
