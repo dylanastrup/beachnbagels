@@ -534,7 +534,7 @@
         <!-- Sticky Floating Cart Bar -->
         <div id="cartBar" class="cart-bar">
             <div class="cart-summary">
-                <span id="cartCount">0</span> Bagels • $<span id="cartTotal">0.00</span>
+                <span id="cartCount">0</span> <span id="cartCountLabel">Bagels</span> • $<span id="cartTotal">0.00</span>
             </div>
             <button id="btnOpenCheckout" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem;">
                 Review & Preorder →
@@ -677,6 +677,7 @@
         const flavorsContainer = document.getElementById("flavorsContainer");
         const cartBar = document.getElementById("cartBar");
         const cartCount = document.getElementById("cartCount");
+        const cartCountLabel = document.getElementById("cartCountLabel");
         const cartTotal = document.getElementById("cartTotal");
         const waitlistForm = document.getElementById("emailWaitlistForm");
         const subscriberEmail = document.getElementById("subscriberEmail");
@@ -933,6 +934,7 @@
         };
 
         function updateCartUI() {
+            let totalBagels = 0;
             let totalBundles = 0;
             let totalPrice = 0;
 
@@ -942,22 +944,30 @@
                 const fl = flavors.find(f => f.id === flavorId);
                 if (fl) {
                     let unitPrice = 0;
+                    let bagelsPerBundle = 1;
                     if (bundle === "half") {
                         unitPrice = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
+                        bagelsPerBundle = 6;
                     } else if (bundle === "dozen") {
                         unitPrice = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
+                        bagelsPerBundle = 12;
                     } else {
                         unitPrice = fl.price || 3.50;
+                        bagelsPerBundle = 1;
                     }
+                    totalBagels += qty * bagelsPerBundle;
                     totalBundles += qty;
                     totalPrice += qty * unitPrice;
                 }
             });
 
-            cartCount.textContent = totalBundles;
+            cartCount.textContent = totalBagels;
+            if (cartCountLabel) {
+                cartCountLabel.textContent = totalBagels === 1 ? "Bagel" : "Bagels";
+            }
             cartTotal.textContent = totalPrice.toFixed(2);
 
-            if (totalBundles > 0) {
+            if (totalBagels > 0) {
                 cartBar.style.display = "flex";
             } else {
                 cartBar.style.display = "none";
@@ -985,10 +995,10 @@
                     let bundleTitle = "";
                     if (bundle === "half") {
                         unitPrice = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
-                        bundleTitle = "Half Dozen (6)";
+                        bundleTitle = "Half Dozen • 6 Bagels";
                     } else if (bundle === "dozen") {
                         unitPrice = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
-                        bundleTitle = "Full Dozen (12)";
+                        bundleTitle = "Full Dozen • 12 Bagels";
                     } else {
                         unitPrice = fl.price || 3.50;
                         bundleTitle = "Single";
