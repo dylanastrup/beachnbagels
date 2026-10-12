@@ -1052,16 +1052,23 @@
                     body: JSON.stringify(orderPayload)
                 });
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.sessionUrl) {
-                        window.location.href = data.sessionUrl;
-                        return;
-                    }
+                if (!res.ok) {
+                    let errMsg = "Unable to start checkout. Please check flavor availability and try again.";
+                    try {
+                        const errData = await res.json();
+                        if (errData && errData.error) errMsg = errData.error;
+                    } catch (_) {}
+                    alert("Checkout Error: " + errMsg);
+                    return;
                 }
-                
-                alert("Preorder submitted! When Stripe functions are deployed, this automatically opens the Stripe payment checkout page.");
-                checkoutModal.style.display = "none";
+
+                const data = await res.json();
+                if (data.sessionUrl) {
+                    window.location.href = data.sessionUrl;
+                    return;
+                } else {
+                    alert("Checkout Error: No Stripe session URL returned.");
+                }
             } catch (err) {
                 console.error("Checkout error:", err);
                 alert("Checkout error: " + err.message);

@@ -149,23 +149,52 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
 
     const origin = returnUrl || req.headers.origin || "https://beachnbagels.com";
 
-    // 3. Create Stripe Checkout Session
+    // 3. Construct session metadata respecting Stripe's 500-char limit per value
+    const sessionMetadata = {
+      dropId: dropId,
+      customerName: customerName,
+      customerEmail: customerEmail,
+      customerPhone: customerPhone || ""
+    };
+
+    const fullItemsJson = JSON.stringify(orderItemsSummary);
+    if (fullItemsJson.length <= 500) {
+      sessionMetadata.itemsJson = fullItemsJson;
+    } else {
+      // Chunk across items_0, items_1, etc. (each chunk max 450 characters)
+      const chunkSize = 450;
+      let chunkIdx = 0;
+      for (let i = 0; i < fullItemsJson.length; i += chunkSize) {
+        sessionMetadata[`items_${chunkIdx}`] = fullItemsJson.slice(i, i + chunkSize);
+        chunkIdx++;
+      }
+    }
+
+    // 4. Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
       customer_email: customerEmail,
-      metadata: {
-        dropId: dropId,
-        customerName: customerName,
-        customerEmail: customerEmail,
-        customerPhone: customerPhone || "",
-        itemsJson: JSON.stringify(orderItemsSummary)
-      },
+      metadata: sessionMetadata,
       expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minute checkout window
       success_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}&success=true`,
       cancel_url: `${origin}/?canceled=true`
     });
+
+    // 5. Store pending order in Firestore keyed by session.id for robust retrieval
+    try {
+      await db.collection("pendingOrders").doc(session.id).set({
+        dropId,
+        customerName,
+        customerEmail,
+        customerPhone: customerPhone || "",
+        items: orderItemsSummary,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (saveErr) {
+      console.warn("Could not save pendingOrders doc:", saveErr.message);
+    }
 
     return res.status(200).json({ sessionUrl: session.url, sessionId: session.id });
   } catch (error) {
@@ -199,14 +228,87 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
   // Handle successful checkout
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const { dropId, customerName, customerEmail, customerPhone, itemsJson } = session.metadata || {};
+    const metadata = session.metadata || {};
+    let dropId = metadata.dropId;
+    let customerName = metadata.customerName || (session.customer_details && session.customer_details.name) || "";
+    let customerEmail = metadata.customerEmail || session.customer_email || (session.customer_details && session.customer_details.email) || "";
+    let customerPhone = metadata.customerPhone || (session.customer_details && session.customer_details.phone) || "";
+    let items = null;
 
-    if (!dropId || !itemsJson) {
-      console.warn("Received checkout without required metadata:", session.id);
-      return res.status(200).json({ received: true });
+    // Source 1: Check pendingOrders document in Firestore
+    try {
+      const pendingDoc = await db.collection("pendingOrders").doc(session.id).get();
+      if (pendingDoc.exists) {
+        const pData = pendingDoc.data();
+        if (Array.isArray(pData.items) && pData.items.length > 0) {
+          items = pData.items;
+        }
+        if (pData.dropId) dropId = pData.dropId;
+        if (pData.customerName) customerName = pData.customerName;
+        if (pData.customerEmail) customerEmail = pData.customerEmail;
+        if (pData.customerPhone) customerPhone = pData.customerPhone;
+      }
+    } catch (err) {
+      console.warn(`Error reading pendingOrders/${session.id}:`, err.message);
     }
 
-    const items = JSON.parse(itemsJson);
+    // Source 2: Reconstruct items from session metadata (itemsJson or chunked items_0, items_1...)
+    if (!items) {
+      if (metadata.itemsJson) {
+        try {
+          items = JSON.parse(metadata.itemsJson);
+        } catch (e) {
+          console.warn("Failed to parse metadata.itemsJson:", e.message);
+        }
+      } else {
+        let combined = "";
+        let idx = 0;
+        while (metadata[`items_${idx}`]) {
+          combined += metadata[`items_${idx}`];
+          idx++;
+        }
+        if (combined) {
+          try {
+            items = JSON.parse(combined);
+          } catch (e) {
+            console.warn("Failed to parse chunked items metadata:", e.message);
+          }
+        }
+      }
+    }
+
+    // Source 3: Fallback reconstruct items from Stripe line items if needed
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      try {
+        const lineItemsList = await stripe.checkout.sessions.listLineItems(session.id, { expand: ["data.price.product"] });
+        if (lineItemsList && lineItemsList.data && lineItemsList.data.length > 0) {
+          items = lineItemsList.data.map(li => {
+            const prod = li.price && li.price.product;
+            const meta = (prod && prod.metadata) || {};
+            const bundle = meta.bundle || "dozen";
+            const bagelsPerUnit = bundle === "half" ? 6 : (bundle === "dozen" ? 12 : 1);
+            if (!dropId && meta.dropId) dropId = meta.dropId;
+            return {
+              flavorId: meta.flavorId,
+              flavorName: li.description || (prod && prod.name) || "Bagels",
+              bundle: bundle,
+              bundleLabel: bundle === "half" ? "Half Dozen (6 Bagels)" : (bundle === "dozen" ? "Full Dozen (12 Bagels)" : "Single"),
+              quantity: li.quantity,
+              bagelUnits: bagelsPerUnit * li.quantity,
+              unitPrice: (li.price && li.price.unit_amount) ? li.price.unit_amount / 100 : 0,
+              subtotal: (li.amount_total != null) ? li.amount_total / 100 : 0
+            };
+          });
+        }
+      } catch (liErr) {
+        console.warn("Could not list line items from Stripe:", liErr.message);
+      }
+    }
+
+    if (!dropId || !items || !Array.isArray(items) || items.length === 0) {
+      console.warn("Received checkout without required dropId or items:", session.id);
+      return res.status(200).json({ received: true });
+    }
 
     try {
       // Run atomic transaction to record order and update inventory soldCount
@@ -277,6 +379,9 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
       });
 
       console.log(`Order ${session.id} successfully recorded.`);
+
+      // Clean up pending order doc if it exists
+      await db.collection("pendingOrders").doc(session.id).delete().catch(() => {});
     } catch (err) {
       console.error(`Transaction failed for session ${session.id}:`, err);
       return res.status(500).send("Transaction error");
