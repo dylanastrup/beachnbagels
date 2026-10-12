@@ -403,6 +403,21 @@
             font-size: 1.15rem;
         }
 
+        .cart-restored-banner {
+            display: none;
+            background: #FEF3C7;
+            border: 2px solid var(--gold);
+            color: #92400E;
+            padding: 14px 20px;
+            border-radius: 16px;
+            margin: 0 auto 20px auto;
+            max-width: 650px;
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(253, 187, 76, 0.2);
+        }
+
         /* Modal for Checkout Details */
         .modal-overlay {
             display: none;
@@ -523,6 +538,11 @@
             <div class="section-header">
                 <h2 class="section-title">Preorder Your Bagels</h2>
                 <p style="font-size: 0.95rem; margin-bottom: 15px;">Hand-crafted in limited batches. Secure yours before we sell out!</p>
+            </div>
+
+            <!-- Canceled Checkout Notice Banner -->
+            <div id="cartCanceledBanner" class="cart-restored-banner">
+                🥯 <strong>Checkout Canceled:</strong> No worries! Your bagels are still saved in your cart below whenever you're ready.
             </div>
 
             <!-- Flavor Cards Container -->
@@ -669,7 +689,14 @@
 
         function loadCartFromStorage() {
             try {
-                const saved = localStorage.getItem(CART_STORAGE_KEY);
+                let saved = localStorage.getItem(CART_STORAGE_KEY);
+                if (!saved) {
+                    saved = sessionStorage.getItem(CART_STORAGE_KEY);
+                }
+                if (!saved) {
+                    const match = document.cookie.match(new RegExp('(^|;\\s*)' + CART_STORAGE_KEY + '=([^;]*)'));
+                    if (match) saved = decodeURIComponent(match[2]);
+                }
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     if (parsed && typeof parsed === "object") {
@@ -684,7 +711,10 @@
 
         function saveCartToStorage() {
             try {
-                localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+                const serialized = JSON.stringify(cart);
+                localStorage.setItem(CART_STORAGE_KEY, serialized);
+                sessionStorage.setItem(CART_STORAGE_KEY, serialized);
+                document.cookie = `${CART_STORAGE_KEY}=${encodeURIComponent(serialized)}; path=/; max-age=604800; SameSite=Lax`;
             } catch (e) {
                 console.warn("Could not save cart to storage:", e);
             }
@@ -694,12 +724,15 @@
             for (let k in cart) delete cart[k];
             try {
                 localStorage.removeItem(CART_STORAGE_KEY);
+                sessionStorage.removeItem(CART_STORAGE_KEY);
+                document.cookie = `${CART_STORAGE_KEY}=; path=/; max-age=0`;
             } catch (e) {}
         }
 
         function loadCustomerFromStorage() {
             try {
-                const saved = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+                let saved = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+                if (!saved) saved = sessionStorage.getItem(CUSTOMER_STORAGE_KEY);
                 if (saved) {
                     const data = JSON.parse(saved);
                     const custNameEl = document.getElementById("custName");
@@ -714,7 +747,9 @@
 
         function saveCustomerToStorage(name, email, phone) {
             try {
-                localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify({ name, email, phone }));
+                const serialized = JSON.stringify({ name, email, phone });
+                localStorage.setItem(CUSTOMER_STORAGE_KEY, serialized);
+                sessionStorage.setItem(CUSTOMER_STORAGE_KEY, serialized);
             } catch (_) {}
         }
 
@@ -880,35 +915,37 @@
             db.collection("drops").doc(dropId).collection("flavors").onSnapshot((snapshot) => {
                 flavors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Remove flavor keys from cart if they do not belong to current drop
-                const validFlavorIds = new Set(flavors.map(f => f.id));
-                let cartModified = false;
-                Object.keys(cart).forEach(key => {
-                    const [flavorId] = key.split("::");
-                    if (!validFlavorIds.has(flavorId)) {
-                        delete cart[key];
-                        cartModified = true;
-                    }
-                });
+                // Only sanitize if flavors are loaded and non-empty
+                if (flavors.length > 0) {
+                    const validFlavorIds = new Set(flavors.map(f => f.id));
+                    let cartModified = false;
+                    Object.keys(cart).forEach(key => {
+                        const [flavorId] = key.split("::");
+                        if (!validFlavorIds.has(flavorId)) {
+                            delete cart[key];
+                            cartModified = true;
+                        }
+                    });
 
-                // Sanitize cart against live inventory in case stock decreased
-                flavors.forEach(fl => {
-                    const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
-                    let currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
-                    while (currentBagelsInCart > remaining && (cart[`${fl.id}::dozen`] || 0) > 0) {
-                        cart[`${fl.id}::dozen`]--;
-                        if (cart[`${fl.id}::dozen`] === 0) delete cart[`${fl.id}::dozen`];
-                        currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
-                        cartModified = true;
-                    }
-                    while (currentBagelsInCart > remaining && (cart[`${fl.id}::half`] || 0) > 0) {
-                        cart[`${fl.id}::half`]--;
-                        if (cart[`${fl.id}::half`] === 0) delete cart[`${fl.id}::half`];
-                        currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
-                        cartModified = true;
-                    }
-                });
-                if (cartModified) saveCartToStorage();
+                    // Sanitize cart against live inventory in case stock decreased
+                    flavors.forEach(fl => {
+                        const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
+                        let currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
+                        while (currentBagelsInCart > remaining && (cart[`${fl.id}::dozen`] || 0) > 0) {
+                            cart[`${fl.id}::dozen`]--;
+                            if (cart[`${fl.id}::dozen`] === 0) delete cart[`${fl.id}::dozen`];
+                            currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
+                            cartModified = true;
+                        }
+                        while (currentBagelsInCart > remaining && (cart[`${fl.id}::half`] || 0) > 0) {
+                            cart[`${fl.id}::half`]--;
+                            if (cart[`${fl.id}::half`] === 0) delete cart[`${fl.id}::half`];
+                            currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
+                            cartModified = true;
+                        }
+                    });
+                    if (cartModified) saveCartToStorage();
+                }
 
                 renderFlavors(flavors);
             });
@@ -1030,23 +1067,25 @@
                 if (qty <= 0) return;
                 const [flavorId, bundle] = key.split("::");
                 const fl = flavors.find(f => f.id === flavorId);
+                let unitPrice = 0;
+                let bagelsPerBundle = bundle === "half" ? 6 : (bundle === "dozen" ? 12 : 1);
+
                 if (fl) {
-                    let unitPrice = 0;
-                    let bagelsPerBundle = 1;
                     if (bundle === "half") {
                         unitPrice = fl.priceHalf != null ? fl.priceHalf : (fl.price ? fl.price * 6 : 18.00);
-                        bagelsPerBundle = 6;
                     } else if (bundle === "dozen") {
                         unitPrice = fl.priceFull != null ? fl.priceFull : (fl.price ? fl.price * 12 : 28.00);
-                        bagelsPerBundle = 12;
                     } else {
                         unitPrice = fl.price || 3.50;
-                        bagelsPerBundle = 1;
                     }
-                    totalBagels += qty * bagelsPerBundle;
-                    totalBundles += qty;
-                    totalPrice += qty * unitPrice;
+                } else {
+                    // Fallback bundle price if flavors array is still loading from Firestore
+                    unitPrice = bundle === "half" ? 18.00 : (bundle === "dozen" ? 28.00 : 3.50);
                 }
+
+                totalBagels += qty * bagelsPerBundle;
+                totalBundles += qty;
+                totalPrice += qty * unitPrice;
             });
 
             cartCount.textContent = totalBagels;
@@ -1122,6 +1161,7 @@
             const custEmail = document.getElementById("custEmail").value.trim();
             const custPhone = document.getElementById("custPhone").value.trim();
             saveCustomerToStorage(custName, custEmail, custPhone);
+            saveCartToStorage();
 
             const orderPayload = {
                 dropId: currentDropId,
@@ -1214,7 +1254,12 @@
             } else if (isCanceled) {
                 loadCartFromStorage();
                 updateCartUI();
-                alert("Your bagel checkout was canceled. Your selected bagels are still in your cart if you would like to complete your order!");
+                const cancelBanner = document.getElementById("cartCanceledBanner");
+                if (cancelBanner) {
+                    cancelBanner.style.display = "block";
+                    const preorderEl = document.getElementById("preorderSection");
+                    if (preorderEl) preorderEl.scrollIntoView({ behavior: "smooth" });
+                }
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         })();
