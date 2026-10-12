@@ -663,7 +663,63 @@
         let currentDrop = null;
         let currentDropId = null;
         let flavors = [];
-        const cart = {}; // { flavorId: quantity }
+        const cart = {}; // { flavorId::bundle: quantity }
+        const CART_STORAGE_KEY = "beachnbagels_cart";
+        const CUSTOMER_STORAGE_KEY = "beachnbagels_customer";
+
+        function loadCartFromStorage() {
+            try {
+                const saved = localStorage.getItem(CART_STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && typeof parsed === "object") {
+                        for (let k in cart) delete cart[k];
+                        Object.assign(cart, parsed);
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not load cart from storage:", e);
+            }
+        }
+
+        function saveCartToStorage() {
+            try {
+                localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+            } catch (e) {
+                console.warn("Could not save cart to storage:", e);
+            }
+        }
+
+        function clearCartStorage() {
+            for (let k in cart) delete cart[k];
+            try {
+                localStorage.removeItem(CART_STORAGE_KEY);
+            } catch (e) {}
+        }
+
+        function loadCustomerFromStorage() {
+            try {
+                const saved = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    const custNameEl = document.getElementById("custName");
+                    const custEmailEl = document.getElementById("custEmail");
+                    const custPhoneEl = document.getElementById("custPhone");
+                    if (custNameEl && data.name) custNameEl.value = data.name;
+                    if (custEmailEl && data.email) custEmailEl.value = data.email;
+                    if (custPhoneEl && data.phone) custPhoneEl.value = data.phone;
+                }
+            } catch (_) {}
+        }
+
+        function saveCustomerToStorage(name, email, phone) {
+            try {
+                localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify({ name, email, phone }));
+            } catch (_) {}
+        }
+
+        // Initialize cart from localStorage immediately on startup
+        loadCartFromStorage();
 
         // DOM elements
         const heroIntroSection = document.getElementById("heroIntroSection");
@@ -823,6 +879,37 @@
         function listenToDropFlavors(dropId) {
             db.collection("drops").doc(dropId).collection("flavors").onSnapshot((snapshot) => {
                 flavors = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Remove flavor keys from cart if they do not belong to current drop
+                const validFlavorIds = new Set(flavors.map(f => f.id));
+                let cartModified = false;
+                Object.keys(cart).forEach(key => {
+                    const [flavorId] = key.split("::");
+                    if (!validFlavorIds.has(flavorId)) {
+                        delete cart[key];
+                        cartModified = true;
+                    }
+                });
+
+                // Sanitize cart against live inventory in case stock decreased
+                flavors.forEach(fl => {
+                    const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
+                    let currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
+                    while (currentBagelsInCart > remaining && (cart[`${fl.id}::dozen`] || 0) > 0) {
+                        cart[`${fl.id}::dozen`]--;
+                        if (cart[`${fl.id}::dozen`] === 0) delete cart[`${fl.id}::dozen`];
+                        currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
+                        cartModified = true;
+                    }
+                    while (currentBagelsInCart > remaining && (cart[`${fl.id}::half`] || 0) > 0) {
+                        cart[`${fl.id}::half`]--;
+                        if (cart[`${fl.id}::half`] === 0) delete cart[`${fl.id}::half`];
+                        currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
+                        cartModified = true;
+                    }
+                });
+                if (cartModified) saveCartToStorage();
+
                 renderFlavors(flavors);
             });
         }
@@ -930,6 +1017,7 @@
                 cart[`${flavorId}::${bundle}`] = nextQty;
             }
 
+            saveCartToStorage();
             renderFlavors(flavors);
         };
 
@@ -983,6 +1071,7 @@
         const checkoutForm = document.getElementById("checkoutForm");
 
         btnOpenCheckout.addEventListener("click", () => {
+            loadCustomerFromStorage();
             let summaryHtml = "";
             let total = 0;
 
@@ -1029,6 +1118,11 @@
             btn.disabled = true;
             btn.textContent = "Connecting to Stripe Checkout...";
 
+            const custName = document.getElementById("custName").value.trim();
+            const custEmail = document.getElementById("custEmail").value.trim();
+            const custPhone = document.getElementById("custPhone").value.trim();
+            saveCustomerToStorage(custName, custEmail, custPhone);
+
             const orderPayload = {
                 dropId: currentDropId,
                 items: Object.entries(cart).filter(([_, qty]) => qty > 0).map(([key, qty]) => {
@@ -1039,9 +1133,9 @@
                         quantity: qty
                     };
                 }),
-                customerName: document.getElementById("custName").value.trim(),
-                customerEmail: document.getElementById("custEmail").value.trim(),
-                customerPhone: document.getElementById("custPhone").value.trim(),
+                customerName: custName,
+                customerEmail: custEmail,
+                customerPhone: custPhone,
                 returnUrl: window.location.origin
             };
 
@@ -1089,7 +1183,7 @@
 
             if (isSuccess) {
                 // Clear cart from storage/memory
-                for (let k in cart) delete cart[k];
+                clearCartStorage();
                 updateCartUI();
 
                 const orderSuccessModal = document.getElementById("orderSuccessModal");
@@ -1118,6 +1212,8 @@
                     });
                 }
             } else if (isCanceled) {
+                loadCartFromStorage();
+                updateCartUI();
                 alert("Your bagel checkout was canceled. Your selected bagels are still in your cart if you would like to complete your order!");
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
