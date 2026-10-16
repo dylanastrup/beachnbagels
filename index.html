@@ -687,10 +687,19 @@
         const CART_STORAGE_KEY = "beachnbagels_cart";
         const CUSTOMER_STORAGE_KEY = "beachnbagels_customer";
 
+        function parseDate(rawDate) {
+            if (!rawDate) return null;
+            if (rawDate.toDate && typeof rawDate.toDate === "function") {
+                return rawDate.toDate();
+            }
+            const d = new Date(rawDate);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
         function isDropActive() {
             if (!currentDrop || currentDrop.status !== "active") return false;
             const now = new Date();
-            const cutoffDate = currentDrop.cutoffAt ? new Date(currentDrop.cutoffAt.toDate ? currentDrop.cutoffAt.toDate() : currentDrop.cutoffAt) : null;
+            const cutoffDate = parseDate(currentDrop.cutoffAt);
             if (cutoffDate && now > cutoffDate) return false;
             return true;
         }
@@ -797,11 +806,16 @@
                         currentDropId = parsed.id;
                         currentDrop = parsed.data;
 
-                        // Check if cutoff has already passed on cached drop
                         const now = new Date();
-                        const cutoffDate = currentDrop.cutoffAt ? new Date(currentDrop.cutoffAt.toDate ? currentDrop.cutoffAt.toDate() : currentDrop.cutoffAt) : null;
+                        const cutoffDate = parseDate(currentDrop.cutoffAt);
                         if (cutoffDate && now > cutoffDate) {
                             currentDrop.status = "closed";
+                        }
+
+                        // If cached drop is not currently active, do not render preorders live
+                        if (currentDrop.status !== "active") {
+                            renderNoActiveDrop();
+                            return;
                         }
 
                         evaluateDropState(false);
@@ -879,21 +893,31 @@
         function listenToLiveDrop() {
             db.collection("drops").onSnapshot((snapshot) => {
                 if (snapshot.empty) {
-                    if (!currentDrop) renderNoActiveDrop();
-                    return;
-                }
-
-                // Find active drop (ignoring archived drops)
-                const nonArchivedDocs = snapshot.docs.filter(d => d.data().status !== "archived");
-                if (nonArchivedDocs.length === 0) {
                     currentDropId = null;
                     currentDrop = null;
+                    flavors = [];
                     try { localStorage.removeItem(CACHED_DROP_KEY); } catch (_) {}
+                    try { localStorage.removeItem(CACHED_FLAVORS_KEY); } catch (_) {}
+                    clearCartStorage();
                     renderNoActiveDrop();
                     return;
                 }
 
-                const activeDoc = nonArchivedDocs.find(d => d.data().status === "active") || nonArchivedDocs[0];
+                // Find active drop (ignoring archived, draft, closed drops)
+                const nonArchivedDocs = snapshot.docs.filter(d => d.data().status !== "archived");
+                const activeDoc = nonArchivedDocs.find(d => d.data().status === "active");
+
+                if (!activeDoc) {
+                    currentDropId = null;
+                    currentDrop = null;
+                    flavors = [];
+                    try { localStorage.removeItem(CACHED_DROP_KEY); } catch (_) {}
+                    try { localStorage.removeItem(CACHED_FLAVORS_KEY); } catch (_) {}
+                    clearCartStorage();
+                    renderNoActiveDrop();
+                    return;
+                }
+
                 currentDropId = activeDoc.id;
                 currentDrop = activeDoc.data();
 
@@ -915,8 +939,8 @@
             }
 
             const now = new Date();
-            const cutoffDate = currentDrop.cutoffAt ? new Date(currentDrop.cutoffAt.toDate ? currentDrop.cutoffAt.toDate() : currentDrop.cutoffAt) : null;
-            const isCutoffPassed = cutoffDate && now > cutoffDate;
+            const cutoffDate = parseDate(currentDrop.cutoffAt);
+            const isCutoffPassed = cutoffDate ? now > cutoffDate : false;
             const isSoldOut = currentDrop.status === "sold_out";
             const isActive = currentDrop.status === "active" && !isCutoffPassed && !isSoldOut;
 
@@ -959,11 +983,13 @@
                 if (attachFlavorListener && currentDropId) {
                     listenToDropFlavors(currentDropId);
                 }
+            } else {
+                renderNoActiveDrop();
             }
         }
 
         function updateCountdown(cutoffDate) {
-            if (!cutoffDate) {
+            if (!cutoffDate || isNaN(cutoffDate.getTime())) {
                 bannerCountdown.innerHTML = "🔥 Limited quantities available!";
                 return;
             }
@@ -971,7 +997,7 @@
             function tick() {
                 const now = new Date();
                 const diff = cutoffDate - now;
-                if (diff <= 0) {
+                if (isNaN(diff) || diff <= 0) {
                     evaluateDropState();
                     return;
                 }
