@@ -647,6 +647,11 @@
                     <input type="tel" id="custPhone" placeholder="(805) 555-0123" required>
                 </div>
                 
+                <div style="background: #FEF3C7; border: 1.5px solid #F59E0B; border-radius: 10px; padding: 10px 12px; margin-top: 6px; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: #92400E; line-height: 1.4;">
+                    <span style="font-size: 1.25rem; flex-shrink: 0;">⏱️</span>
+                    <div><strong>30-Minute Reservation:</strong> Once you proceed to checkout, your selected bagels are held exclusively for you for 30 minutes.</div>
+                </div>
+
                 <p style="font-size:0.8rem; opacity:0.8; margin-top:4px;">
                     💳 Secure payment powered by Stripe. Apple Pay, Google Pay, and cards accepted.
                 </p>
@@ -1041,7 +1046,7 @@
 
                     // Sanitize cart against live inventory in case stock decreased
                     flavors.forEach(fl => {
-                        const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
+                        const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0) - (fl.reservedCount || 0));
                         let currentBagelsInCart = getBagelsInCartForFlavor(fl.id);
                         while (currentBagelsInCart > remaining && (cart[`${fl.id}::dozen`] || 0) > 0) {
                             cart[`${fl.id}::dozen`]--;
@@ -1075,8 +1080,9 @@
 
             flavorList.forEach(fl => {
                 const sold = fl.soldCount || 0;
+                const reserved = fl.reservedCount || 0;
                 const total = fl.totalInventory || 0;
-                const remaining = Math.max(0, total - sold);
+                const remaining = Math.max(0, total - sold - reserved);
                 const isSoldOut = remaining < 6;
 
                 // Bundle Prices
@@ -1147,7 +1153,7 @@
             const fl = flavors.find(f => f.id === flavorId);
             if (!fl) return;
 
-            const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0));
+            const remaining = Math.max(0, (fl.totalInventory || 0) - (fl.soldCount || 0) - (fl.reservedCount || 0));
             const bagelsPerBundle = bundle === "half" ? 6 : (bundle === "dozen" ? 12 : 1);
             const currentQty = cart[`${flavorId}::${bundle}`] || 0;
             const currentTotalBagelsInCart = getBagelsInCartForFlavor(flavorId);
@@ -1327,6 +1333,9 @@
 
                 const data = await res.json();
                 if (data.sessionUrl) {
+                    if (data.sessionId) {
+                        sessionStorage.setItem("beachnbagels_pending_session_id", data.sessionId);
+                    }
                     window.location.href = data.sessionUrl;
                     return;
                 } else {
@@ -1344,6 +1353,19 @@
         // Initialize listener
         listenToLiveDrop();
 
+        // Release inventory reservation hold immediately if checkout canceled/abandoned
+        function releasePendingCheckoutHold() {
+            const pendingSessionId = sessionStorage.getItem("beachnbagels_pending_session_id");
+            if (pendingSessionId) {
+                sessionStorage.removeItem("beachnbagels_pending_session_id");
+                fetch("/api/releaseCheckoutHold", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sessionId: pendingSessionId })
+                }).catch(e => console.warn("Failed to release checkout hold:", e));
+            }
+        }
+
         // 5. Check for Stripe Checkout return redirect (?success=true or ?canceled=true)
         function checkCheckoutReturnStatus() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1353,6 +1375,7 @@
 
             if (isSuccess) {
                 sessionStorage.removeItem("beachnbagels_checkout_in_progress");
+                sessionStorage.removeItem("beachnbagels_pending_session_id");
                 // Clear cart from storage/memory
                 clearCartStorage();
                 updateCartUI();
@@ -1384,6 +1407,7 @@
                 }
             } else if (isCanceled || wasPending) {
                 sessionStorage.removeItem("beachnbagels_checkout_in_progress");
+                releasePendingCheckoutHold();
 
                 if (isDropActive()) {
                     loadCartFromStorage();
@@ -1465,6 +1489,7 @@
 
             if ((wasCanceledUrl || wasPending) && !isSuccess) {
                 sessionStorage.removeItem("beachnbagels_checkout_in_progress");
+                releasePendingCheckoutHold();
                 const cancelBanner = document.getElementById("cartCanceledBanner");
                 if (cancelBanner) {
                     cancelBanner.style.display = "block";

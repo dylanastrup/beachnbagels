@@ -42,30 +42,11 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
       return res.status(400).json({ error: "Name and email are required for preorder." });
     }
 
-    // 1. Fetch Drop document and verify it is active and before cutoff
+    // 1. Fetch Drop and flavors inside an atomic transaction to verify available stock
+    // and reserve bagels (reservedCount) before creating the Stripe checkout session.
     const dropRef = db.collection("drops").doc(dropId);
-    const dropDoc = await dropRef.get();
 
-    if (!dropDoc.exists) {
-      return res.status(404).json({ error: "Drop not found." });
-    }
-
-    const dropData = dropDoc.data();
-    const now = new Date();
-    const cutoffDate = dropData.cutoffAt ? dropData.cutoffAt.toDate() : null;
-
-    if (dropData.status !== "active") {
-      return res.status(400).json({ error: "Preorders are currently closed for this drop." });
-    }
-
-    if (cutoffDate && now > cutoffDate) {
-      // Auto-update drop status if cutoff reached
-      await dropRef.update({ status: "closed" });
-      return res.status(400).json({ error: "Preorder cutoff deadline has passed." });
-    }
-
-    // 2. Validate requested flavor stock and construct Stripe line items
-    // First, aggregate total bagel units requested per flavorId
+    // Aggregate total bagel units requested per flavorId
     const flavorBagelRequests = {};
     for (const item of items) {
       const bundle = item.bundle || "dozen";
@@ -74,31 +55,71 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
       flavorBagelRequests[item.flavorId] = (flavorBagelRequests[item.flavorId] || 0) + totalBagels;
     }
 
-    // Verify stock for each flavor
+    let dropData;
     const flavorDocsCache = {};
-    for (const flavorId of Object.keys(flavorBagelRequests)) {
-      const flavorRef = dropRef.collection("flavors").doc(flavorId);
-      const flavorDoc = await flavorRef.get();
-      if (!flavorDoc.exists) {
-        return res.status(400).json({ error: `Flavor ${flavorId} not found.` });
-      }
-      flavorDocsCache[flavorId] = flavorDoc;
-      const flavor = flavorDoc.data();
-      const remaining = (flavor.totalInventory || 0) - (flavor.soldCount || 0);
-      const requested = flavorBagelRequests[flavorId];
-      if (requested > remaining) {
-        return res.status(400).json({
-          error: `Sorry! You requested ${requested} ${flavor.name} bagels, but only ${Math.max(0, remaining)} are left in stock.`
-        });
-      }
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const dropDoc = await transaction.get(dropRef);
+        if (!dropDoc.exists) {
+          throw new Error("Drop not found.");
+        }
+
+        dropData = dropDoc.data();
+        const now = new Date();
+        const cutoffDate = dropData.cutoffAt ? dropData.cutoffAt.toDate() : null;
+
+        if (dropData.status !== "active") {
+          throw new Error("Preorders are currently closed for this drop.");
+        }
+
+        if (cutoffDate && now > cutoffDate) {
+          transaction.update(dropRef, { status: "closed" });
+          throw new Error("Preorder cutoff deadline has passed.");
+        }
+
+        // Execute ALL READS first (Firestore transaction requirement)
+        const flavorDataMap = {};
+        for (const flavorId of Object.keys(flavorBagelRequests)) {
+          const flavorRef = dropRef.collection("flavors").doc(flavorId);
+          const flavorDoc = await transaction.get(flavorRef);
+          if (!flavorDoc.exists) {
+            throw new Error(`Flavor ${flavorId} not found.`);
+          }
+          const fData = flavorDoc.data();
+          flavorDataMap[flavorId] = { ref: flavorRef, data: fData };
+
+          const available = (fData.totalInventory || 0) - (fData.soldCount || 0) - (fData.reservedCount || 0);
+          const requested = flavorBagelRequests[flavorId];
+          if (requested > available) {
+            throw new Error(
+              `Sorry! You requested ${requested} ${fData.name || "bagel"} bagels, but only ${Math.max(0, available)} are currently available (another customer may be checking out).`
+            );
+          }
+        }
+
+        // Execute ALL WRITES after all reads
+        for (const flavorId of Object.keys(flavorBagelRequests)) {
+          const { ref, data } = flavorDataMap[flavorId];
+          const currentReserved = data.reservedCount || 0;
+          const requested = flavorBagelRequests[flavorId];
+          transaction.update(ref, {
+            reservedCount: currentReserved + requested
+          });
+          flavorDocsCache[flavorId] = data;
+        }
+      });
+    } catch (txErr) {
+      console.warn("Stock reservation transaction failed:", txErr.message);
+      return res.status(400).json({ error: txErr.message || "Failed to reserve bagels." });
     }
 
+    // 2. Build Stripe line items and order summary
     const lineItems = [];
     const orderItemsSummary = [];
 
     for (const item of items) {
-      const flavorDoc = flavorDocsCache[item.flavorId];
-      const flavor = flavorDoc.data();
+      const flavor = flavorDocsCache[item.flavorId] || {};
       const bundle = item.bundle || "dozen";
       let unitPrice = 0;
       let bundleLabel = "";
@@ -122,7 +143,7 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
         price_data: {
           currency: "usd",
           product_data: {
-            name: `${flavor.name} Bagels - ${bundleLabel}`,
+            name: `${flavor.name || "Bagels"} - ${bundleLabel}`,
             description: `Beach'n Bagels - ${dropData.title || "Pop-up Drop"}`,
             metadata: {
               flavorId: item.flavorId,
@@ -137,7 +158,7 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
 
       orderItemsSummary.push({
         flavorId: item.flavorId,
-        flavorName: flavor.name,
+        flavorName: flavor.name || "Bagels",
         bundle: bundle,
         bundleLabel: bundleLabel,
         quantity: item.quantity,
@@ -170,27 +191,50 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
       }
     }
 
-    // 4. Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      mode: "payment",
-      customer_email: customerEmail,
-      metadata: sessionMetadata,
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minute checkout window
-      success_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}&success=true`,
-      cancel_url: `${origin}/?canceled=true`
-    });
+    // 4. Create Stripe Checkout Session (30 minute hold window)
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        customer_email: customerEmail,
+        metadata: sessionMetadata,
+        expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minute checkout window
+        success_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}&success=true`,
+        cancel_url: `${origin}/?canceled=true`
+      });
+    } catch (stripeErr) {
+      console.error("Stripe session creation failed, rolling back reservation hold:", stripeErr);
+      // Rollback reservation hold immediately
+      await db.runTransaction(async (rbTx) => {
+        for (const flavorId of Object.keys(flavorBagelRequests)) {
+          const fRef = dropRef.collection("flavors").doc(flavorId);
+          const fDoc = await rbTx.get(fRef);
+          if (fDoc.exists) {
+            const curReserved = fDoc.data().reservedCount || 0;
+            rbTx.update(fRef, {
+              reservedCount: Math.max(0, curReserved - flavorBagelRequests[flavorId])
+            });
+          }
+        }
+      }).catch(rbFail => console.error("Rollback transaction error:", rbFail));
 
-    // 5. Store pending order in Firestore keyed by session.id for robust retrieval
+      return res.status(500).json({ error: "Failed to initialize payment with Stripe. Please try again." });
+    }
+
+    // 5. Store pending order in Firestore keyed by session.id
     try {
       await db.collection("pendingOrders").doc(session.id).set({
+        status: "pending",
         dropId,
         customerName,
         customerEmail,
         customerPhone: customerPhone || "",
         items: orderItemsSummary,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        flavorBagelRequests,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000)
       });
     } catch (saveErr) {
       console.warn("Could not save pendingOrders doc:", saveErr.message);
@@ -343,8 +387,10 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
 
           if (flavorDoc.exists) {
             const data = flavorDoc.data();
-            const newSoldCount = (data.soldCount || 0) + unitsPerFlavor[flavorId];
-            flavorUpdates.push({ ref: flavorRef, newSoldCount });
+            const units = unitsPerFlavor[flavorId];
+            const newSoldCount = (data.soldCount || 0) + units;
+            const newReservedCount = Math.max(0, (data.reservedCount || 0) - units);
+            flavorUpdates.push({ ref: flavorRef, newSoldCount, newReservedCount });
 
             if (newSoldCount < (data.totalInventory || 0)) {
               allSoldOut = false;
@@ -354,13 +400,20 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
 
         // Step 2: Execute ALL WRITES after all reads
         for (const update of flavorUpdates) {
-          transaction.update(update.ref, { soldCount: update.newSoldCount });
+          transaction.update(update.ref, {
+            soldCount: update.newSoldCount,
+            reservedCount: update.newReservedCount
+          });
         }
 
         // If every flavor is completely sold, mark drop as sold_out
         if (allSoldOut) {
           transaction.update(dropRef, { status: "sold_out" });
         }
+
+        // Clean up pending order doc
+        const pendingRef = db.collection("pendingOrders").doc(session.id);
+        transaction.delete(pendingRef);
 
         // Create confirmed order document
         transaction.set(orderRef, {
@@ -379,14 +432,117 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
       });
 
       console.log(`Order ${session.id} successfully recorded.`);
-
-      // Clean up pending order doc if it exists
-      await db.collection("pendingOrders").doc(session.id).delete().catch(() => {});
     } catch (err) {
       console.error(`Transaction failed for session ${session.id}:`, err);
       return res.status(500).send("Transaction error");
     }
   }
 
+  // Handle expired checkout session (e.g. user abandoned checkout after 30 mins)
+  if (event.type === "checkout.session.expired") {
+    const session = event.data.object;
+    try {
+      await releaseHoldHelper(session.id);
+      console.log(`Reservation hold released for expired session ${session.id}`);
+    } catch (err) {
+      console.error(`Error handling expired session ${session.id}:`, err);
+    }
+    return res.status(200).json({ received: true });
+  }
+
   return res.status(200).json({ received: true });
+});
+
+/**
+ * Helper to release an inventory reservation hold for an uncompleted Stripe session.
+ * Guaranteed idempotent: only releases if pendingOrders doc has status: "pending".
+ */
+async function releaseHoldHelper(sessionId) {
+  const pendingRef = db.collection("pendingOrders").doc(sessionId);
+
+  await db.runTransaction(async (transaction) => {
+    const pendingDoc = await transaction.get(pendingRef);
+    if (!pendingDoc.exists) {
+      return;
+    }
+
+    const pData = pendingDoc.data();
+    if (pData.status !== "pending") {
+      return;
+    }
+
+    const dropId = pData.dropId;
+    if (!dropId) {
+      transaction.update(pendingRef, { status: "released" });
+      return;
+    }
+
+    const dropRef = db.collection("drops").doc(dropId);
+
+    // Compute units to release per flavor
+    const unitsPerFlavor = pData.flavorBagelRequests || {};
+    if (Object.keys(unitsPerFlavor).length === 0 && Array.isArray(pData.items)) {
+      for (const item of pData.items) {
+        const units = item.bagelUnits != null ? item.bagelUnits : (
+          item.bundle === "half" ? (item.quantity || 1) * 6 : (
+            item.bundle === "dozen" ? (item.quantity || 1) * 12 : (item.quantity || 1)
+          )
+        );
+        unitsPerFlavor[item.flavorId] = (unitsPerFlavor[item.flavorId] || 0) + units;
+      }
+    }
+
+    // Step 1: Read all flavor docs first
+    const flavorUpdates = [];
+    for (const flavorId of Object.keys(unitsPerFlavor)) {
+      const flavorRef = dropRef.collection("flavors").doc(flavorId);
+      const flavorDoc = await transaction.get(flavorRef);
+      if (flavorDoc.exists) {
+        const curReserved = flavorDoc.data().reservedCount || 0;
+        const toRelease = unitsPerFlavor[flavorId];
+        const newReserved = Math.max(0, curReserved - toRelease);
+        flavorUpdates.push({ ref: flavorRef, newReserved });
+      }
+    }
+
+    // Step 2: Write all flavor updates
+    for (const u of flavorUpdates) {
+      transaction.update(u.ref, { reservedCount: u.newReserved });
+    }
+
+    // Step 3: Mark pendingOrder as released
+    transaction.update(pendingRef, {
+      status: "released",
+      releasedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+}
+
+/**
+ * API endpoint to immediately release inventory hold when a customer cancels or returns.
+ */
+exports.releaseCheckoutHold = onRequest({ cors: true, secrets: [stripeSecretKey] }, async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  const { sessionId } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "Missing sessionId" });
+  }
+
+  try {
+    await releaseHoldHelper(sessionId);
+
+    // Expire session on Stripe side so it cannot be reopened
+    try {
+      const stripe = getStripeClient();
+      await stripe.checkout.sessions.expire(sessionId);
+    } catch (_) {}
+
+    return res.status(200).json({ released: true, sessionId });
+  } catch (error) {
+    console.error(`Error releasing checkout hold for ${sessionId}:`, error);
+    return res.status(500).json({ error: error.message || "Failed to release hold" });
+  }
 });

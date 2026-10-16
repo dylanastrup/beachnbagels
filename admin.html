@@ -1053,8 +1053,9 @@
 
             tbody.innerHTML = flavors.map(fl => {
                 const sold = fl.soldCount || 0;
+                const reserved = fl.reservedCount || 0;
                 const total = fl.totalInventory || 0;
-                const remaining = Math.max(0, total - sold);
+                const remaining = Math.max(0, total - sold - reserved);
                 const isSoldOut = remaining < 6;
                 const escapedName = (fl.name || "").replace(/'/g, "\\'");
 
@@ -1071,7 +1072,10 @@
                         <td>${priceDisplay}</td>
                         <td>${total} <span style="font-size:0.8rem; opacity:0.75;">(${(total/12).toFixed(1)} doz)</span></td>
                         <td>${sold} <span style="font-size:0.8rem; opacity:0.75;">(${(sold/12).toFixed(1)} doz)</span></td>
-                        <td><strong style="color: ${isSoldOut ? 'var(--red)' : 'inherit'};">${remaining}</strong></td>
+                        <td>
+                            <strong style="color: ${isSoldOut ? 'var(--red)' : 'inherit'};">${remaining}</strong>
+                            ${reserved > 0 ? `<div style="font-size:0.75rem; color:#b45309; font-weight:700;">(${reserved} held)</div>` : ''}
+                        </td>
                         <td>
                             <span class="status-pill status-${isSoldOut ? 'sold_out' : 'active'}">
                                 ${isSoldOut ? 'SOLD OUT' : 'IN STOCK'}
