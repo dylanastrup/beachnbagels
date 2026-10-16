@@ -687,12 +687,18 @@
         const CART_STORAGE_KEY = "beachnbagels_cart";
         const CUSTOMER_STORAGE_KEY = "beachnbagels_customer";
 
+        function isDropActive() {
+            if (!currentDrop || currentDrop.status !== "active") return false;
+            const now = new Date();
+            const cutoffDate = currentDrop.cutoffAt ? new Date(currentDrop.cutoffAt.toDate ? currentDrop.cutoffAt.toDate() : currentDrop.cutoffAt) : null;
+            if (cutoffDate && now > cutoffDate) return false;
+            return true;
+        }
+
         function loadCartFromStorage() {
             try {
                 let saved = localStorage.getItem(CART_STORAGE_KEY);
-                if (!saved) {
-                    saved = sessionStorage.getItem(CART_STORAGE_KEY);
-                }
+                if (!saved) saved = sessionStorage.getItem(CART_STORAGE_KEY);
                 if (!saved) {
                     const match = document.cookie.match(new RegExp('(^|;\\s*)' + CART_STORAGE_KEY + '=([^;]*)'));
                     if (match) saved = decodeURIComponent(match[2]);
@@ -700,8 +706,29 @@
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     if (parsed && typeof parsed === "object") {
+                        let savedDropId = null;
+                        let savedCartItems = parsed;
+                        if (parsed.dropId !== undefined && parsed.cart !== undefined) {
+                            savedDropId = parsed.dropId;
+                            savedCartItems = parsed.cart;
+                        }
+
+                        // If dropId in storage does not match current drop, clear stale cart from past drop
+                        if (currentDropId && savedDropId && currentDropId !== savedDropId) {
+                            clearCartStorage();
+                            return;
+                        }
+
+                        // If drop is currently not active, clear stale cart
+                        if (currentDrop && !isDropActive()) {
+                            clearCartStorage();
+                            return;
+                        }
+
                         for (let k in cart) delete cart[k];
-                        Object.assign(cart, parsed);
+                        if (savedCartItems && typeof savedCartItems === "object") {
+                            Object.assign(cart, savedCartItems);
+                        }
                     }
                 }
             } catch (e) {
@@ -711,7 +738,11 @@
 
         function saveCartToStorage() {
             try {
-                const serialized = JSON.stringify(cart);
+                const payload = {
+                    dropId: currentDropId,
+                    cart: cart
+                };
+                const serialized = JSON.stringify(payload);
                 localStorage.setItem(CART_STORAGE_KEY, serialized);
                 sessionStorage.setItem(CART_STORAGE_KEY, serialized);
                 document.cookie = `${CART_STORAGE_KEY}=${encodeURIComponent(serialized)}; path=/; max-age=604800; SameSite=Lax`;
@@ -765,10 +796,18 @@
                     if (parsed && parsed.id && parsed.data) {
                         currentDropId = parsed.id;
                         currentDrop = parsed.data;
+
+                        // Check if cutoff has already passed on cached drop
+                        const now = new Date();
+                        const cutoffDate = currentDrop.cutoffAt ? new Date(currentDrop.cutoffAt.toDate ? currentDrop.cutoffAt.toDate() : currentDrop.cutoffAt) : null;
+                        if (cutoffDate && now > cutoffDate) {
+                            currentDrop.status = "closed";
+                        }
+
                         evaluateDropState(false);
                     }
                 }
-                if (cachedFlavorsRaw) {
+                if (cachedFlavorsRaw && isDropActive()) {
                     const parsed = JSON.parse(cachedFlavorsRaw);
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         flavors = parsed;
@@ -797,10 +836,11 @@
         const waitlistForm = document.getElementById("emailWaitlistForm");
         const subscriberEmail = document.getElementById("subscriberEmail");
         const formFeedback = document.getElementById("formFeedback");
+        const checkoutModal = document.getElementById("checkoutModal");
 
-        // Instant startup rendering: load cart & cached active drop/flavors at 0ms
-        loadCartFromStorage();
+        // Instant startup rendering: load cached active drop/flavors at 0ms, then validate and load cart
         loadCachedDropAndFlavors();
+        loadCartFromStorage();
         updateCartUI();
 
         // 1. Native Firebase Waitlist Form Submission
@@ -892,6 +932,8 @@
                 bannerCountdown.innerHTML = "🎉 All bagel flavors are sold out! Join the waitlist for the next drop.";
                 preorderSection.style.display = "none";
                 cartBar.style.display = "none";
+                clearCartStorage();
+                if (checkoutModal) checkoutModal.style.display = "none";
                 return;
             }
 
@@ -902,6 +944,8 @@
                 bannerCountdown.innerHTML = "⏳ Preorders are closed while we bake. See you at Silver Strand!";
                 preorderSection.style.display = "none";
                 cartBar.style.display = "none";
+                clearCartStorage();
+                if (checkoutModal) checkoutModal.style.display = "none";
                 return;
             }
 
@@ -944,6 +988,8 @@
             dropBanner.style.display = "none";
             preorderSection.style.display = "none";
             cartBar.style.display = "none";
+            clearCartStorage();
+            if (checkoutModal) checkoutModal.style.display = "none";
         }
 
         // 3. Real-Time Flavor Inventory Listener
@@ -1099,6 +1145,11 @@
         };
 
         function updateCartUI() {
+            if (!isDropActive()) {
+                cartBar.style.display = "none";
+                return;
+            }
+
             let totalBagels = 0;
             let totalBundles = 0;
             let totalPrice = 0;
@@ -1134,7 +1185,7 @@
             }
             cartTotal.textContent = totalPrice.toFixed(2);
 
-            if (totalBagels > 0) {
+            if (totalBagels > 0 && isDropActive()) {
                 cartBar.style.display = "flex";
             } else {
                 cartBar.style.display = "none";
@@ -1142,7 +1193,6 @@
         }
 
         // 4. Checkout Modal & Stripe Payment
-        const checkoutModal = document.getElementById("checkoutModal");
         const btnOpenCheckout = document.getElementById("btnOpenCheckout");
         const btnCloseCheckout = document.getElementById("btnCloseCheckout");
         const modalOrderSummary = document.getElementById("modalOrderSummary");
@@ -1150,6 +1200,12 @@
         const checkoutForm = document.getElementById("checkoutForm");
 
         btnOpenCheckout.addEventListener("click", () => {
+            if (!isDropActive()) {
+                alert("Sorry! Preorders for this pop-up drop have closed.");
+                clearCartStorage();
+                updateCartUI();
+                return;
+            }
             loadCustomerFromStorage();
             let summaryHtml = "";
             let total = 0;
@@ -1302,21 +1358,45 @@
                 }
             } else if (isCanceled || wasPending) {
                 sessionStorage.removeItem("beachnbagels_checkout_in_progress");
-                loadCartFromStorage();
-                if (flavors && flavors.length > 0) {
-                    renderFlavors(flavors);
+
+                if (isDropActive()) {
+                    loadCartFromStorage();
+                    if (flavors && flavors.length > 0) {
+                        renderFlavors(flavors);
+                    } else {
+                        updateCartUI();
+                    }
+                    const cancelBanner = document.getElementById("cartCanceledBanner");
+                    if (cancelBanner) {
+                        cancelBanner.style.display = "block";
+                        const preorderEl = document.getElementById("preorderSection");
+                        if (preorderEl) {
+                            preorderEl.style.display = "block";
+                            preorderEl.scrollIntoView({ behavior: "smooth" });
+                        }
+                    }
                 } else {
+                    // Preorders ended while at checkout or away
+                    clearCartStorage();
                     updateCartUI();
-                }
-                const cancelBanner = document.getElementById("cartCanceledBanner");
-                if (cancelBanner) {
-                    cancelBanner.style.display = "block";
+                    const cancelBanner = document.getElementById("cartCanceledBanner");
+                    if (cancelBanner) cancelBanner.style.display = "none";
                     const preorderEl = document.getElementById("preorderSection");
-                    if (preorderEl) {
-                        preorderEl.style.display = "block";
-                        preorderEl.scrollIntoView({ behavior: "smooth" });
+                    if (preorderEl) preorderEl.style.display = "none";
+                    const cartBarEl = document.getElementById("cartBar");
+                    if (cartBarEl) cartBarEl.style.display = "none";
+
+                    const formFeedback = document.getElementById("formFeedback");
+                    if (formFeedback) {
+                        formFeedback.style.display = "block";
+                        formFeedback.style.background = "#FEF3C7";
+                        formFeedback.style.color = "#92400E";
+                        formFeedback.style.border = "2px solid #FDBB4C";
+                        formFeedback.innerHTML = "⏳ <strong>Preorders Closed:</strong> Preorders closed for this pop-up while you were away. No payment was charged. Join the waitlist below for our next drop!";
+                        formFeedback.scrollIntoView({ behavior: "smooth" });
                     }
                 }
+
                 if (isCanceled) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
@@ -1333,6 +1413,16 @@
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = "Pay & Reserve Bagels";
+            }
+
+            if (!isDropActive()) {
+                clearCartStorage();
+                updateCartUI();
+                const preorderEl = document.getElementById("preorderSection");
+                if (preorderEl) preorderEl.style.display = "none";
+                const cartBarEl = document.getElementById("cartBar");
+                if (cartBarEl) cartBarEl.style.display = "none";
+                return;
             }
 
             loadCartFromStorage();
