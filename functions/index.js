@@ -596,28 +596,34 @@ async function fulfillOrderSession(sessionId, providedSession = null) {
         unitsPerFlavor[item.flavorId] = (unitsPerFlavor[item.flavorId] || 0) + units;
       }
 
-      // Read all flavor docs first
-      let allSoldOut = true;
+      // Read all flavor docs first to verify true inventory across the entire menu
+      const allFlavorsSnap = await transaction.get(dropRef.collection("flavors"));
+      let anyFlavorAvailable = false;
       const flavorUpdates = [];
 
-      for (const flavorId of Object.keys(unitsPerFlavor)) {
-        const flavorRef = dropRef.collection("flavors").doc(flavorId);
-        const flavorDoc = await transaction.get(flavorRef);
+      allFlavorsSnap.forEach((fDoc) => {
+        const data = fDoc.data();
+        const unitsOrdered = unitsPerFlavor[fDoc.id] || 0;
+        const newSoldCount = (data.soldCount || 0) + unitsOrdered;
+        const newReservedCount = Math.max(0, (data.reservedCount || 0) - unitsOrdered);
+        const remaining = (data.totalInventory || 0) - newSoldCount;
 
-        if (flavorDoc.exists) {
-          const data = flavorDoc.data();
-          const units = unitsPerFlavor[flavorId];
-          const newSoldCount = (data.soldCount || 0) + units;
-          const newReservedCount = Math.max(0, (data.reservedCount || 0) - units);
-          flavorUpdates.push({ ref: flavorRef, newSoldCount, newReservedCount });
-
-          if (newSoldCount < (data.totalInventory || 0)) {
-            allSoldOut = false;
-          }
+        // If this flavor was in the order, queue its update write
+        if (unitsOrdered > 0) {
+          flavorUpdates.push({
+            ref: fDoc.ref,
+            newSoldCount,
+            newReservedCount
+          });
         }
-      }
 
-      // Execute all writes
+        // A flavor is available for ordering if at least 6 bagels (minimum half-dozen bundle) remain
+        if (remaining >= 6) {
+          anyFlavorAvailable = true;
+        }
+      });
+
+      // Execute all flavor writes
       for (const update of flavorUpdates) {
         transaction.update(update.ref, {
           soldCount: update.newSoldCount,
@@ -625,7 +631,8 @@ async function fulfillOrderSession(sessionId, providedSession = null) {
         });
       }
 
-      if (allSoldOut) {
+      // ONLY mark the drop as sold_out if literally ZERO flavors have at least 6 bagels available
+      if (!anyFlavorAvailable && allFlavorsSnap.size > 0) {
         transaction.update(dropRef, { status: "sold_out" });
       }
 

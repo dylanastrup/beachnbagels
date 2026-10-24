@@ -1248,9 +1248,10 @@
                     return;
                 }
 
-                // Find active drop (ignoring archived, draft, closed drops)
+                // Find active or fully sold-out drop (ignoring archived, draft, closed drops)
                 const nonArchivedDocs = snapshot.docs.filter(d => d.data().status !== "archived");
-                const activeDoc = nonArchivedDocs.find(d => d.data().status === "active");
+                const activeDoc = nonArchivedDocs.find(d => d.data().status === "active") 
+                    || nonArchivedDocs.find(d => d.data().status === "sold_out");
 
                 if (!activeDoc) {
                     currentDropId = null;
