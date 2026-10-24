@@ -446,6 +446,7 @@
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button class="btn btn-gold btn-sm" onclick="seedDefaultFlavors()">✨ Load Default 4 Flavors</button>
                             <button class="btn btn-teal btn-sm" onclick="openAddFlavorModal()">+ Add Flavor</button>
+                            <button class="btn btn-sm" style="background: #EBF2F4; color: var(--teal); border: 2px solid var(--teal);" onclick="syncStripeOrders(this)" title="Sync pending orders and release expired holds">🔄 Sync Stripe & Holds</button>
                         </div>
                     </div>
                     <div style="overflow-x: auto;">
@@ -497,6 +498,7 @@
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <button class="btn btn-sm btn-gold" onclick="printPackingSlips()">🖨️ Print Packing Slips</button>
                             <button class="btn btn-sm btn-teal" onclick="exportOrdersCSV()">⬇️ Export CSV</button>
+                            <button class="btn btn-sm" style="background: #EBF2F4; color: var(--teal); border: 2px solid var(--teal);" onclick="syncStripeOrders(this)" title="Sync pending orders and release expired holds">🔄 Sync Stripe & Holds</button>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <label style="font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">View:</label>
                                 <select id="ordersScopeSelect" onchange="changeOrdersScope(this.value)" style="padding: 6px 12px; font-weight: 700; border-radius: 20px; font-size: 0.85rem; border: 2px solid var(--teal); background: var(--white); cursor: pointer;">
@@ -1662,6 +1664,9 @@
                 const orderDrop = allDrops.find(d => d.id === order.dropId);
                 const dropTag = (ordersScope === "all" && orderDrop) ? `<div style="font-size:0.75rem; color:var(--teal); font-weight:700; margin-top:3px;">📍 ${orderDrop.title}</div>` : '';
 
+                const isTestOrder = order.isTest || (order.id && order.id.startsWith("cs_test_"));
+                const testBadge = isTestOrder ? `<span style="display:inline-block; font-size:0.7rem; background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; padding:1px 6px; border-radius:10px; font-weight:bold; margin-left:6px;">TEST</span>` : '';
+
                 return `
                     <tr>
                         <td>
@@ -1670,7 +1675,7 @@
                             </span>
                         </td>
                         <td>
-                            <strong>${order.customerName || "Customer"}</strong>
+                            <strong>${order.customerName || "Customer"}</strong>${testBadge}
                             ${dropTag}
                         </td>
                         <td>
@@ -1737,6 +1742,47 @@
             } catch (err) {
                 console.error("Error deleting order:", err);
                 alert("Error deleting order: " + err.message);
+            }
+        };
+
+        window.syncStripeOrders = async function(btnElement) {
+            const btn = btnElement || (event && event.target ? event.target : null);
+            const originalText = btn ? btn.textContent : "";
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "🔄 Checking Stripe...";
+            }
+            try {
+                const res = await fetch("/api/syncPendingOrders", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
+                const data = await res.json();
+                if (data.success && data.results) {
+                    const numFulfilled = (data.results.fulfilled || []).length;
+                    const numReleased = (data.results.released || []).length;
+                    let msg = "Stripe Synchronization Complete! 🎉\n\n";
+                    if (numFulfilled > 0) {
+                        msg += `• Confirmed & Fulfilled ${numFulfilled} paid order(s)!\n`;
+                    }
+                    if (numReleased > 0) {
+                        msg += `• Released ${numReleased} abandoned / expired bagel hold(s) back to inventory.\n`;
+                    }
+                    if (numFulfilled === 0 && numReleased === 0) {
+                        msg += "All pending orders and bagel reservations are already up to date with Stripe.";
+                    }
+                    alert(msg);
+                } else {
+                    alert("Sync result: " + JSON.stringify(data));
+                }
+            } catch (err) {
+                console.error("Error syncing orders:", err);
+                alert("Error syncing orders with Stripe: " + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText || "🔄 Sync Stripe & Holds";
+                }
             }
         };
 

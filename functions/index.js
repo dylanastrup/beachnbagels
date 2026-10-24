@@ -11,7 +11,6 @@ setGlobalOptions({ region: "us-central1" });
 // Define Cloud Secrets stored securely in Google Cloud Secret Manager
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
-const resendApiKey = defineSecret("RESEND_API_KEY");
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -31,7 +30,15 @@ async function getStripeMode() {
   return "test"; // Default to test mode until explicitly switched
 }
 
-async function getStripeClient(preferredMode = null) {
+async function getStripeClient(preferredMode = null, sessionId = null) {
+  if (sessionId && sessionId.startsWith("cs_test_") && stripeTestSecretKey) {
+    return new Stripe(stripeTestSecretKey);
+  }
+  if (sessionId && sessionId.startsWith("cs_live_")) {
+    const key = stripeSecretKey.value() || process.env.STRIPE_SECRET_KEY;
+    if (key) return new Stripe(key);
+  }
+
   const mode = preferredMode || await getStripeMode();
   if (mode === "test" && stripeTestSecretKey) {
     return new Stripe(stripeTestSecretKey);
@@ -41,7 +48,7 @@ async function getStripeClient(preferredMode = null) {
 }
 
 function getResendClient() {
-  const key = resendApiKey.value() || process.env.RESEND_API_KEY;
+  const key = process.env.RESEND_API_KEY;
   return new Resend(key);
 }
 
@@ -450,16 +457,258 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
 });
 
 /**
+ * Core fulfillment logic for a completed Stripe checkout session.
+ * Fully idempotent: safe to call from Webhook, client return redirect, or admin sync.
+ */
+async function fulfillOrderSession(sessionId, providedSession = null) {
+  if (!sessionId) {
+    return { success: false, error: "Missing sessionId" };
+  }
+
+  // Idempotency check 1: Has this order already been confirmed in Firestore?
+  const orderRef = db.collection("orders").doc(sessionId);
+  const existingOrderSnap = await orderRef.get();
+  if (existingOrderSnap.exists) {
+    console.log(`Order ${sessionId} has already been fulfilled.`);
+    return { success: true, alreadyFulfilled: true, orderId: sessionId };
+  }
+
+  // Retrieve Stripe checkout session if not already provided
+  let session = providedSession;
+  if (!session) {
+    try {
+      const stripe = await getStripeClient(null, sessionId);
+      session = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch (retrieveErr) {
+      console.error(`Error retrieving session ${sessionId} from Stripe:`, retrieveErr.message);
+      return { success: false, error: retrieveErr.message };
+    }
+  }
+
+  // Verify payment status
+  if (session.payment_status !== "paid") {
+    console.warn(`Session ${sessionId} payment status is '${session.payment_status}' (not paid).`);
+    return { success: false, error: `Payment status is ${session.payment_status}` };
+  }
+
+  const metadata = session.metadata || {};
+  let dropId = metadata.dropId;
+  let customerName = metadata.customerName || (session.customer_details && session.customer_details.name) || "";
+  let customerEmail = metadata.customerEmail || session.customer_email || (session.customer_details && session.customer_details.email) || "";
+  let customerPhone = metadata.customerPhone || (session.customer_details && session.customer_details.phone) || "";
+  let items = null;
+
+  // Source 1: Check pendingOrders document in Firestore
+  try {
+    const pendingDoc = await db.collection("pendingOrders").doc(session.id).get();
+    if (pendingDoc.exists) {
+      const pData = pendingDoc.data();
+      if (Array.isArray(pData.items) && pData.items.length > 0) {
+        items = pData.items;
+      }
+      if (pData.dropId) dropId = pData.dropId;
+      if (pData.customerName) customerName = pData.customerName;
+      if (pData.customerEmail) customerEmail = pData.customerEmail;
+      if (pData.customerPhone) customerPhone = pData.customerPhone;
+    }
+  } catch (err) {
+    console.warn(`Error reading pendingOrders/${session.id}:`, err.message);
+  }
+
+  // Source 2: Reconstruct items from session metadata (itemsJson or chunked items_0, items_1...)
+  if (!items) {
+    if (metadata.itemsJson) {
+      try {
+        items = JSON.parse(metadata.itemsJson);
+      } catch (e) {
+        console.warn("Failed to parse metadata.itemsJson:", e.message);
+      }
+    } else {
+      let combined = "";
+      let idx = 0;
+      while (metadata[`items_${idx}`]) {
+        combined += metadata[`items_${idx}`];
+        idx++;
+      }
+      if (combined) {
+        try {
+          items = JSON.parse(combined);
+        } catch (e) {
+          console.warn("Failed to parse chunked items metadata:", e.message);
+        }
+      }
+    }
+  }
+
+  // Source 3: Fallback reconstruct items from Stripe line items if needed
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    try {
+      const stripe = await getStripeClient(null, session.id);
+      const lineItemsList = await stripe.checkout.sessions.listLineItems(session.id, { expand: ["data.price.product"] });
+      if (lineItemsList && lineItemsList.data && lineItemsList.data.length > 0) {
+        items = lineItemsList.data.map(li => {
+          const prod = li.price && li.price.product;
+          const meta = (prod && prod.metadata) || {};
+          const bundle = meta.bundle || "dozen";
+          const bagelsPerUnit = bundle === "half" ? 6 : (bundle === "dozen" ? 12 : 1);
+          if (!dropId && meta.dropId) dropId = meta.dropId;
+          return {
+            flavorId: meta.flavorId,
+            flavorName: li.description || (prod && prod.name) || "Bagels",
+            bundle: bundle,
+            bundleLabel: bundle === "half" ? "Half Dozen (6 Bagels)" : (bundle === "dozen" ? "Full Dozen (12 Bagels)" : "Single"),
+            quantity: li.quantity,
+            bagelUnits: bagelsPerUnit * li.quantity,
+            unitPrice: (li.price && li.price.unit_amount) ? li.price.unit_amount / 100 : 0,
+            subtotal: (li.amount_total != null) ? li.amount_total / 100 : 0
+          };
+        });
+      }
+    } catch (liErr) {
+      console.warn("Could not list line items from Stripe:", liErr.message);
+    }
+  }
+
+  if (!dropId || !items || !Array.isArray(items) || items.length === 0) {
+    console.warn("Received checkout without required dropId or items:", session.id);
+    return { success: false, error: "Missing dropId or items" };
+  }
+
+  // Atomic transaction to record order and update inventory soldCount / reservedCount
+  try {
+    await db.runTransaction(async (transaction) => {
+      const dropRef = db.collection("drops").doc(dropId);
+
+      // Check idempotency inside transaction
+      const existingTxOrder = await transaction.get(orderRef);
+      if (existingTxOrder.exists) {
+        return;
+      }
+
+      // Step 1: Aggregate bagel units per flavorId
+      const unitsPerFlavor = {};
+      for (const item of items) {
+        const units = item.bagelUnits != null ? item.bagelUnits : (
+          item.bundle === "half" ? (item.quantity || 1) * 6 : (
+            item.bundle === "dozen" ? (item.quantity || 1) * 12 : (item.quantity || 1)
+          )
+        );
+        unitsPerFlavor[item.flavorId] = (unitsPerFlavor[item.flavorId] || 0) + units;
+      }
+
+      // Read all flavor docs first
+      let allSoldOut = true;
+      const flavorUpdates = [];
+
+      for (const flavorId of Object.keys(unitsPerFlavor)) {
+        const flavorRef = dropRef.collection("flavors").doc(flavorId);
+        const flavorDoc = await transaction.get(flavorRef);
+
+        if (flavorDoc.exists) {
+          const data = flavorDoc.data();
+          const units = unitsPerFlavor[flavorId];
+          const newSoldCount = (data.soldCount || 0) + units;
+          const newReservedCount = Math.max(0, (data.reservedCount || 0) - units);
+          flavorUpdates.push({ ref: flavorRef, newSoldCount, newReservedCount });
+
+          if (newSoldCount < (data.totalInventory || 0)) {
+            allSoldOut = false;
+          }
+        }
+      }
+
+      // Execute all writes
+      for (const update of flavorUpdates) {
+        transaction.update(update.ref, {
+          soldCount: update.newSoldCount,
+          reservedCount: update.newReservedCount
+        });
+      }
+
+      if (allSoldOut) {
+        transaction.update(dropRef, { status: "sold_out" });
+      }
+
+      // Clean up pending order doc
+      const pendingRef = db.collection("pendingOrders").doc(session.id);
+      transaction.delete(pendingRef);
+
+      // Create confirmed order document
+      transaction.set(orderRef, {
+        dropId,
+        stripeSessionId: session.id,
+        paymentIntentId: session.payment_intent || "",
+        customerName,
+        customerEmail,
+        customerPhone: customerPhone || "",
+        amountTotal: (session.amount_total || 0) / 100,
+        currency: session.currency || "usd",
+        items,
+        pickupStatus: "unclaimed",
+        isTest: session.id.startsWith("cs_test_"),
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    console.log(`Order ${session.id} successfully recorded.`);
+
+    // Fetch drop details for rich email formatting
+    let dropData = null;
+    try {
+      const dSnap = await db.collection("drops").doc(dropId).get();
+      if (dSnap.exists) dropData = dSnap.data();
+    } catch (_) {}
+
+    // Send baker notification email
+    try {
+      await sendNewOrderAlert({
+        session,
+        customerName,
+        customerEmail,
+        customerPhone,
+        items,
+        drop: dropData
+      });
+    } catch (emailErr) {
+      console.error("Failed to send order alert email:", emailErr);
+    }
+
+    // Send customer confirmation email with pickup details
+    if (customerEmail) {
+      try {
+        await sendCustomerConfirmationEmail({
+          session,
+          customerName,
+          customerEmail,
+          customerPhone,
+          items,
+          drop: dropData
+        });
+      } catch (custEmailErr) {
+        console.error("Failed to send customer confirmation email:", custEmailErr);
+      }
+    }
+
+    return { success: true, orderId: session.id };
+  } catch (txErr) {
+    console.error(`Transaction failed for session ${session.id}:`, txErr);
+    return { success: false, error: txErr.message };
+  }
+}
+
+/**
  * Stripe Webhook Handler.
  * Confirms payment and atomically increments sold counts & logs the order.
  */
-exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecret] }, async (req, res) => {
-  const stripe = await getStripeClient();
+exports.stripeWebhook = onRequest({
+  secrets: [stripeSecretKey, stripeWebhookSecret]
+}, async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const endpointSecret = stripeWebhookSecret.value() || process.env.STRIPE_WEBHOOK_SECRET;
 
   let event;
   try {
+    const stripe = await getStripeClient();
     if (endpointSecret && sig) {
       try {
         event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
@@ -478,206 +727,16 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
   // Handle successful checkout
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const metadata = session.metadata || {};
-    let dropId = metadata.dropId;
-    let customerName = metadata.customerName || (session.customer_details && session.customer_details.name) || "";
-    let customerEmail = metadata.customerEmail || session.customer_email || (session.customer_details && session.customer_details.email) || "";
-    let customerPhone = metadata.customerPhone || (session.customer_details && session.customer_details.phone) || "";
-    let items = null;
-
-    // Source 1: Check pendingOrders document in Firestore
     try {
-      const pendingDoc = await db.collection("pendingOrders").doc(session.id).get();
-      if (pendingDoc.exists) {
-        const pData = pendingDoc.data();
-        if (Array.isArray(pData.items) && pData.items.length > 0) {
-          items = pData.items;
-        }
-        if (pData.dropId) dropId = pData.dropId;
-        if (pData.customerName) customerName = pData.customerName;
-        if (pData.customerEmail) customerEmail = pData.customerEmail;
-        if (pData.customerPhone) customerPhone = pData.customerPhone;
+      const result = await fulfillOrderSession(session.id, session);
+      if (!result.success && !result.alreadyFulfilled) {
+        console.error(`Webhook fulfillment error for session ${session.id}:`, result.error);
+        return res.status(500).send(result.error);
       }
-    } catch (err) {
-      console.warn(`Error reading pendingOrders/${session.id}:`, err.message);
-    }
-
-    // Source 2: Reconstruct items from session metadata (itemsJson or chunked items_0, items_1...)
-    if (!items) {
-      if (metadata.itemsJson) {
-        try {
-          items = JSON.parse(metadata.itemsJson);
-        } catch (e) {
-          console.warn("Failed to parse metadata.itemsJson:", e.message);
-        }
-      } else {
-        let combined = "";
-        let idx = 0;
-        while (metadata[`items_${idx}`]) {
-          combined += metadata[`items_${idx}`];
-          idx++;
-        }
-        if (combined) {
-          try {
-            items = JSON.parse(combined);
-          } catch (e) {
-            console.warn("Failed to parse chunked items metadata:", e.message);
-          }
-        }
-      }
-    }
-
-    // Source 3: Fallback reconstruct items from Stripe line items if needed
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      try {
-        const lineItemsList = await stripe.checkout.sessions.listLineItems(session.id, { expand: ["data.price.product"] });
-        if (lineItemsList && lineItemsList.data && lineItemsList.data.length > 0) {
-          items = lineItemsList.data.map(li => {
-            const prod = li.price && li.price.product;
-            const meta = (prod && prod.metadata) || {};
-            const bundle = meta.bundle || "dozen";
-            const bagelsPerUnit = bundle === "half" ? 6 : (bundle === "dozen" ? 12 : 1);
-            if (!dropId && meta.dropId) dropId = meta.dropId;
-            return {
-              flavorId: meta.flavorId,
-              flavorName: li.description || (prod && prod.name) || "Bagels",
-              bundle: bundle,
-              bundleLabel: bundle === "half" ? "Half Dozen (6 Bagels)" : (bundle === "dozen" ? "Full Dozen (12 Bagels)" : "Single"),
-              quantity: li.quantity,
-              bagelUnits: bagelsPerUnit * li.quantity,
-              unitPrice: (li.price && li.price.unit_amount) ? li.price.unit_amount / 100 : 0,
-              subtotal: (li.amount_total != null) ? li.amount_total / 100 : 0
-            };
-          });
-        }
-      } catch (liErr) {
-        console.warn("Could not list line items from Stripe:", liErr.message);
-      }
-    }
-
-    if (!dropId || !items || !Array.isArray(items) || items.length === 0) {
-      console.warn("Received checkout without required dropId or items:", session.id);
       return res.status(200).json({ received: true });
-    }
-
-    try {
-      // Run atomic transaction to record order and update inventory soldCount
-      await db.runTransaction(async (transaction) => {
-        const dropRef = db.collection("drops").doc(dropId);
-        const orderRef = db.collection("orders").doc(session.id);
-
-        // Check if order was already processed (idempotency)
-        const existingOrder = await transaction.get(orderRef);
-        if (existingOrder.exists) {
-          return;
-        }
-
-        // Step 1: Aggregate bagel units per flavorId
-        const unitsPerFlavor = {};
-        for (const item of items) {
-          const units = item.bagelUnits != null ? item.bagelUnits : (
-            item.bundle === "half" ? (item.quantity || 1) * 6 : (
-              item.bundle === "dozen" ? (item.quantity || 1) * 12 : (item.quantity || 1)
-            )
-          );
-          unitsPerFlavor[item.flavorId] = (unitsPerFlavor[item.flavorId] || 0) + units;
-        }
-
-        // Execute ALL READS first (Firestore transaction requirement)
-        let allSoldOut = true;
-        const flavorUpdates = [];
-
-        for (const flavorId of Object.keys(unitsPerFlavor)) {
-          const flavorRef = dropRef.collection("flavors").doc(flavorId);
-          const flavorDoc = await transaction.get(flavorRef);
-
-          if (flavorDoc.exists) {
-            const data = flavorDoc.data();
-            const units = unitsPerFlavor[flavorId];
-            const newSoldCount = (data.soldCount || 0) + units;
-            const newReservedCount = Math.max(0, (data.reservedCount || 0) - units);
-            flavorUpdates.push({ ref: flavorRef, newSoldCount, newReservedCount });
-
-            if (newSoldCount < (data.totalInventory || 0)) {
-              allSoldOut = false;
-            }
-          }
-        }
-
-        // Step 2: Execute ALL WRITES after all reads
-        for (const update of flavorUpdates) {
-          transaction.update(update.ref, {
-            soldCount: update.newSoldCount,
-            reservedCount: update.newReservedCount
-          });
-        }
-
-        // If every flavor is completely sold, mark drop as sold_out
-        if (allSoldOut) {
-          transaction.update(dropRef, { status: "sold_out" });
-        }
-
-        // Clean up pending order doc
-        const pendingRef = db.collection("pendingOrders").doc(session.id);
-        transaction.delete(pendingRef);
-
-        // Create confirmed order document
-        transaction.set(orderRef, {
-          dropId,
-          stripeSessionId: session.id,
-          paymentIntentId: session.payment_intent,
-          customerName,
-          customerEmail,
-          customerPhone: customerPhone || "",
-          amountTotal: (session.amount_total || 0) / 100,
-          currency: session.currency || "usd",
-          items,
-          pickupStatus: "unclaimed",
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-      });
-
-      console.log(`Order ${session.id} successfully recorded.`);
-
-      // Fetch drop details for rich email formatting
-      let dropData = null;
-      try {
-        const dSnap = await db.collection("drops").doc(dropId).get();
-        if (dSnap.exists) dropData = dSnap.data();
-      } catch (_) {}
-
-      // 1. Send baker notification email
-      try {
-        await sendNewOrderAlert({
-          session,
-          customerName,
-          customerEmail,
-          customerPhone,
-          items,
-          drop: dropData
-        });
-      } catch (emailErr) {
-        console.error("Failed to send order alert email:", emailErr);
-      }
-
-      // 2. Send customer confirmation email with pickup details
-      if (customerEmail) {
-        try {
-          await sendCustomerConfirmationEmail({
-            session,
-            customerName,
-            customerEmail,
-            customerPhone,
-            items,
-            drop: dropData
-          });
-        } catch (custEmailErr) {
-          console.error("Failed to send customer confirmation email:", custEmailErr);
-        }
-      }
-    } catch (err) {
-      console.error(`Transaction failed for session ${session.id}:`, err);
-      return res.status(500).send("Transaction error");
+    } catch (fulfillErr) {
+      console.error(`Webhook handler failed for ${session.id}:`, fulfillErr);
+      return res.status(500).send("Fulfillment failed");
     }
   }
 
@@ -694,6 +753,93 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
   }
 
   return res.status(200).json({ received: true });
+});
+
+/**
+ * Client-facing confirmation endpoint.
+ * Called immediately when customer returns from Stripe to confirm order fulfillment,
+ * guaranteeing instantaneous order processing even if webhooks are delayed or not configured.
+ */
+exports.confirmCheckoutSession = onRequest({
+  cors: true,
+  secrets: [stripeSecretKey]
+}, async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  const { sessionId } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "Missing sessionId" });
+  }
+
+  try {
+    const result = await fulfillOrderSession(sessionId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error(`Error confirming session ${sessionId}:`, err);
+    return res.status(500).json({ error: err.message || "Failed to confirm session" });
+  }
+});
+
+/**
+ * Scans all pendingOrders in Firestore:
+ * - Checks status on Stripe
+ * - If paid: fulfills order atomically
+ * - If expired or canceled: releases reserved inventory hold
+ */
+exports.syncPendingOrders = onRequest({
+  cors: true,
+  secrets: [stripeSecretKey]
+}, async (req, res) => {
+  try {
+    const pendingSnap = await db.collection("pendingOrders").get();
+    const results = { fulfilled: [], released: [], stillPending: [], errors: [] };
+
+    for (const doc of pendingSnap.docs) {
+      const sessionId = doc.id;
+      const pData = doc.data();
+
+      if (pData.status === "released") continue;
+
+      try {
+        const stripe = await getStripeClient(null, sessionId);
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (session.payment_status === "paid") {
+          const fRes = await fulfillOrderSession(sessionId, session);
+          if (fRes.success) {
+            results.fulfilled.push({
+              sessionId,
+              customer: (session.customer_details && session.customer_details.name) || pData.customerName || "Customer"
+            });
+          } else {
+            results.errors.push({ sessionId, error: fRes.error });
+          }
+        } else if (session.status === "expired") {
+          await releaseHoldHelper(sessionId);
+          results.released.push(sessionId);
+        } else {
+          // If created more than 35 mins ago and still unpaid, release it
+          const createdAt = pData.createdAt ? pData.createdAt.toDate() : null;
+          if (createdAt && (Date.now() - createdAt.getTime() > 35 * 60 * 1000)) {
+            await releaseHoldHelper(sessionId);
+            results.released.push(sessionId);
+          } else {
+            results.stillPending.push(sessionId);
+          }
+        }
+      } catch (stripeErr) {
+        console.warn(`Error checking session ${sessionId}:`, stripeErr.message);
+        results.errors.push({ sessionId, error: stripeErr.message });
+      }
+    }
+
+    return res.status(200).json({ success: true, results });
+  } catch (err) {
+    console.error("Error syncing pending orders:", err);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 /**

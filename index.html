@@ -1612,11 +1612,23 @@
             const wasPending = sessionStorage.getItem("beachnbagels_checkout_in_progress") === "true";
 
             if (isSuccess) {
+                const sessionId = urlParams.get("session_id");
                 sessionStorage.removeItem("beachnbagels_checkout_in_progress");
                 sessionStorage.removeItem("beachnbagels_pending_session_id");
                 // Clear cart from storage/memory
                 clearCartStorage();
                 updateCartUI();
+
+                // Call confirmCheckoutSession immediately to guarantee instant order fulfillment & email delivery
+                if (sessionId) {
+                    fetch("/api/confirmCheckoutSession", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ sessionId })
+                    }).then(res => res.json()).then(data => {
+                        console.log("Checkout confirmation response:", data);
+                    }).catch(err => console.warn("Client checkout confirmation error:", err));
+                }
 
                 const orderSuccessModal = document.getElementById("orderSuccessModal");
                 const btnCloseSuccessModal = document.getElementById("btnCloseSuccessModal");

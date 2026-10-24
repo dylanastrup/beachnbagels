@@ -48,6 +48,20 @@
         }
       },
       {
+        "source": "/api/confirmCheckoutSession",
+        "function": {
+          "functionId": "confirmCheckoutSession",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/syncPendingOrders",
+        "function": {
+          "functionId": "syncPendingOrders",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/submitWaitlist",
         "function": {
           "functionId": "submitWaitlist",
