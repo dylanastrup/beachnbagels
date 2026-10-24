@@ -48,7 +48,15 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
-    // 4. Default Deny Catch-All
+    // 4. Content Collection (Site settings & FAQs: content/faq)
+    // Public visitors need to load FAQs and public site settings.
+    // Modifications are restricted to authenticated admins.
+    match /content/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 5. Default Deny Catch-All
     // Lock down any other collections (such as pendingOrders) from direct client access.
     match /{document=**} {
       allow read, write: if false;

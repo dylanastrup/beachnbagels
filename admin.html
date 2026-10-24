@@ -395,6 +395,7 @@
                 <button class="tab-btn" id="tabBtn-prepTab" onclick="switchTab('prepTab')">📋 Kitchen Bake Sheet</button>
                 <button class="tab-btn" id="tabBtn-ordersTab" onclick="switchTab('ordersTab')">📦 Customer Orders (<span id="ordersCount">0</span>)</button>
                 <button class="tab-btn" id="tabBtn-waitlistTab" onclick="switchTab('waitlistTab')">✉️ Email Waitlist (<span id="waitlistCount">0</span>)</button>
+                <button class="tab-btn" id="tabBtn-faqTab" onclick="switchTab('faqTab')">❓ Pop-Up FAQ</button>
             </div>
 
             <!-- Tab 1: Manage Drops & Inventory -->
@@ -559,6 +560,27 @@
                                 <tr><td colspan="3" style="text-align: center; opacity: 0.7;">Loading waitlist...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Pop-Up FAQ Management -->
+            <div id="faqTab" class="tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Pop-Up FAQ & Pickup Guide</h2>
+                            <p style="font-size: 0.85rem; opacity: 0.8;">Manage questions and answers displayed to customers on the live storefront and /faq.html.</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-gold btn-sm" onclick="openAddFaqModal()">+ Add New Question</button>
+                            <button class="btn btn-sm" style="background: var(--gray-200); color: #333;" onclick="resetFaqToDefaults()">✨ Reset to Defaults</button>
+                            <a href="faq.html" target="_blank" class="btn btn-teal btn-sm">Preview /faq.html ↗</a>
+                        </div>
+                    </div>
+
+                    <div id="faqListContainer" style="display: flex; flex-direction: column; gap: 14px;">
+                        <p style="text-align: center; opacity: 0.7; padding: 20px;">Loading FAQ questions...</p>
                     </div>
                 </div>
             </div>
@@ -745,6 +767,34 @@
         </div>
     </div>
 
+    <!-- Add / Edit FAQ Item Modal -->
+    <div id="faqItemModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(42, 90, 102, 0.65); backdrop-filter: blur(4px); z-index: 300; align-items: center; justify-content: center; padding: 20px;">
+        <div class="card" style="max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 0; box-shadow: 0 16px 40px rgba(0,0,0,0.25);">
+            <div class="card-header">
+                <h2 class="card-title" id="faqModalTitle">Add FAQ Question</h2>
+                <button type="button" onclick="closeFaqItemModal()" style="background: none; border: none; font-size: 1.6rem; color: var(--teal); cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            </div>
+            <form id="faqItemForm" onsubmit="handleSaveFaqItem(event)">
+                <input type="hidden" id="modalFaqIndex">
+                
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Question</label>
+                    <input type="text" id="modalFaqQuestion" placeholder="e.g. 🔪 Are the bagels sliced or toasted?" required style="width: 100%;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Answer</label>
+                    <textarea id="modalFaqAnswer" rows="5" placeholder="Write a clear, friendly answer for your customers..." required style="width: 100%; border: 2px solid var(--teal); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.95rem; resize: vertical;"></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn" style="background: var(--gray-200); color: #333; border-color: var(--gray-500);" onclick="closeFaqItemModal()">Cancel</button>
+                    <button type="submit" class="btn btn-gold" id="btnSaveFaqItem">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Hidden Packing Slips Print Area (Populated dynamically before window.print()) -->
     <div id="packingSlipsPrintArea"></div>
 
@@ -904,6 +954,7 @@
             listenToDrops();
             listenToOrders();
             listenToWaitlist();
+            listenToFaq();
         }
 
         let allDrops = [];
@@ -1988,6 +2039,205 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        };
+
+        // FAQ Management
+        const DEFAULT_FAQS = [
+            {
+                id: "faq_pickup",
+                question: "📍 Where and how do I pick up my bagels?",
+                answer: "Look for Ollie the Otter and our signature teal Beach'n Bagels tent set up at the announced pop-up location! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you."
+            },
+            {
+                id: "faq_parking",
+                question: "🚗 Where should I park?",
+                answer: "Parking is typically available along nearby public streets and local beach lots at our pop-up spots. Exact parking tips and coordinates are included in your order receipt and drop announcement. We recommend arriving anytime within the pickup window to grab your bagels and enjoy the ocean breeze!"
+            },
+            {
+                id: "faq_late",
+                question: "⏰ What if I'm running a few minutes late?",
+                answer: "Don't stress! All preorders are paid and reserved specifically for you. We hold all preorders until the end of the pickup window. If you're delayed or have an unexpected change of plans, shoot us a quick note at hello@beachnbagels.com and we will work with you."
+            },
+            {
+                id: "faq_sliced",
+                question: "🔪 Are the bagels sliced or toasted?",
+                answer: "Our bagels are handed out freshly baked and unsliced! Keeping them intact preserves the delicate blistered crust and keeps the soft, chewy interior moist. For the best experience, use a serrated bread knife to slice them right before eating."
+            },
+            {
+                id: "faq_storage",
+                question: "🧊 How should I store and freeze my bagels?",
+                answer: "Our bagels are made with traditional methods and zero artificial preservatives. They are at their absolute peak on Saturday morning! For any bagels you plan to enjoy later in the week: slice them in half, place them into a sealed freezer bag, and freeze them immediately. Pop them straight from the freezer into your toaster for a bakery-fresh crunch."
+            },
+            {
+                id: "faq_spreads",
+                question: "🧈 Do you offer cream cheese or spreads?",
+                answer: "For our pop-ups, our baker focuses 100% on hand-rolling, kettle boiling, and baking the freshest craft bagels possible! We currently sell exclusively whole dozens and half dozens. We encourage you to bring your favorite schmears, butter, or beach picnic spreads."
+            }
+        ];
+
+        let faqItems = [];
+
+        function listenToFaq() {
+            db.collection("content").doc("faq").onSnapshot((doc) => {
+                if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) {
+                    faqItems = doc.data().items;
+                } else {
+                    faqItems = [...DEFAULT_FAQS];
+                }
+                renderFaqAdmin();
+            }, (err) => {
+                console.warn("FAQ listener notice:", err);
+                faqItems = [...DEFAULT_FAQS];
+                renderFaqAdmin();
+            });
+        }
+
+        function renderFaqAdmin() {
+            const container = document.getElementById("faqListContainer");
+            if (!container) return;
+
+            if (faqItems.length === 0) {
+                container.innerHTML = `<p style="text-align: center; opacity: 0.7; padding: 20px;">No FAQ questions configured. Click "+ Add New Question" or "Reset to Defaults".</p>`;
+                return;
+            }
+
+            container.innerHTML = faqItems.map((item, idx) => `
+                <div style="background: var(--white); border: 2px solid var(--teal); border-radius: 12px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 260px;">
+                        <div style="font-family: 'Fredoka', sans-serif; font-size: 1.15rem; color: var(--teal); font-weight: 700; margin-bottom: 6px;">
+                            ${idx + 1}. ${item.question || "Untitled Question"}
+                        </div>
+                        <div style="font-size: 0.95rem; line-height: 1.5; color: var(--teal-dark); opacity: 0.9; white-space: pre-line;">
+                            ${item.answer || ""}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                        <button class="btn btn-sm" style="background: var(--teal-light); color: var(--teal); padding: 4px 8px;" onclick="moveFaqItem(${idx}, -1)" ${idx === 0 ? "disabled style='opacity:0.4; pointer-events:none;'" : ""} title="Move Up">⬆️</button>
+                        <button class="btn btn-sm" style="background: var(--teal-light); color: var(--teal); padding: 4px 8px;" onclick="moveFaqItem(${idx}, 1)" ${idx === faqItems.length - 1 ? "disabled style='opacity:0.4; pointer-events:none;'" : ""} title="Move Down">⬇️</button>
+                        <button class="btn btn-sm btn-teal" style="padding: 6px 12px;" onclick="openEditFaqModal(${idx})">✏️ Edit</button>
+                        <button class="btn btn-sm" style="background: #fee2e2; border-color: #ef4444; color: #991b1b; padding: 6px 10px;" onclick="deleteFaqItem(${idx})" title="Delete question">🗑️</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        window.openAddFaqModal = function() {
+            document.getElementById("faqModalTitle").textContent = "Add FAQ Question";
+            document.getElementById("modalFaqIndex").value = "";
+            document.getElementById("modalFaqQuestion").value = "";
+            document.getElementById("modalFaqAnswer").value = "";
+            document.getElementById("faqItemModal").style.display = "flex";
+            document.getElementById("modalFaqQuestion").focus();
+        };
+
+        window.openEditFaqModal = function(idx) {
+            const item = faqItems[idx];
+            if (!item) return;
+
+            document.getElementById("faqModalTitle").textContent = "Edit FAQ Question";
+            document.getElementById("modalFaqIndex").value = idx;
+            document.getElementById("modalFaqQuestion").value = item.question || "";
+            document.getElementById("modalFaqAnswer").value = item.answer || "";
+            document.getElementById("faqItemModal").style.display = "flex";
+            document.getElementById("modalFaqQuestion").focus();
+        };
+
+        window.closeFaqItemModal = function() {
+            document.getElementById("faqItemModal").style.display = "none";
+        };
+
+        window.handleSaveFaqItem = async function(e) {
+            e.preventDefault();
+            const idxStr = document.getElementById("modalFaqIndex").value;
+            const question = document.getElementById("modalFaqQuestion").value.trim();
+            const answer = document.getElementById("modalFaqAnswer").value.trim();
+
+            const btn = document.getElementById("btnSaveFaqItem");
+            btn.disabled = true;
+            btn.textContent = "Saving...";
+
+            try {
+                const updated = [...faqItems];
+                const itemObj = {
+                    id: (idxStr !== "" && updated[idxStr] && updated[idxStr].id) ? updated[idxStr].id : ("faq_" + Date.now()),
+                    question,
+                    answer
+                };
+
+                if (idxStr !== "" && !isNaN(parseInt(idxStr, 10))) {
+                    updated[parseInt(idxStr, 10)] = itemObj;
+                } else {
+                    updated.push(itemObj);
+                }
+
+                await db.collection("content").doc("faq").set({
+                    items: updated,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                closeFaqItemModal();
+            } catch (err) {
+                console.error("Error saving FAQ item:", err);
+                alert("Error saving FAQ item: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Save Question";
+            }
+        };
+
+        window.moveFaqItem = async function(idx, direction) {
+            const targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= faqItems.length) return;
+
+            const updated = [...faqItems];
+            const temp = updated[idx];
+            updated[idx] = updated[targetIdx];
+            updated[targetIdx] = temp;
+
+            try {
+                await db.collection("content").doc("faq").set({
+                    items: updated,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) {
+                console.error("Error moving FAQ item:", err);
+                alert("Error moving FAQ item: " + err.message);
+            }
+        };
+
+        window.deleteFaqItem = async function(idx) {
+            const item = faqItems[idx];
+            if (!item) return;
+
+            const confirmed = confirm(`Are you sure you want to delete this FAQ question?\n\n"${item.question}"`);
+            if (!confirmed) return;
+
+            const updated = faqItems.filter((_, i) => i !== idx);
+            try {
+                await db.collection("content").doc("faq").set({
+                    items: updated,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) {
+                console.error("Error deleting FAQ item:", err);
+                alert("Error deleting FAQ item: " + err.message);
+            }
+        };
+
+        window.resetFaqToDefaults = async function() {
+            const confirmed = confirm("Reset all FAQ questions to the 6 default pop-up questions?\n\nThis will overwrite current custom FAQ items.");
+            if (!confirmed) return;
+
+            try {
+                await db.collection("content").doc("faq").set({
+                    items: DEFAULT_FAQS,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("FAQ reset to default questions!");
+            } catch (err) {
+                console.error("Error resetting FAQ:", err);
+                alert("Error resetting FAQ: " + err.message);
+            }
         };
     </script>
 </body>

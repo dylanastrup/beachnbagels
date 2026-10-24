@@ -643,54 +643,11 @@
             </button>
         </div>
 
-        <!-- Pop-Up FAQ & Pickup Details Section -->
-        <div class="faq-section" id="faqSection">
-            <h2 class="faq-title">Pop-Up FAQ & Pickup Guide 🥯</h2>
-            <p class="faq-subtitle">Everything you need to know about our beachside drops.</p>
-
-            <div class="faq-accordion">
-                <details class="faq-item">
-                    <summary class="faq-question">📍 Where and how do I pick up my bagels?</summary>
-                    <div class="faq-answer">
-                        Look for <strong>Ollie the Otter</strong> and our signature teal Beach'n Bagels tent set up at the announced pop-up location! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you.
-                    </div>
-                </details>
-
-                <details class="faq-item">
-                    <summary class="faq-question">🚗 Where should I park?</summary>
-                    <div class="faq-answer">
-                        Parking is typically available along nearby public streets and local beach lots at our pop-up spots. Exact parking tips and coordinates are included in your order receipt and drop announcement. We recommend arriving anytime within the pickup window to grab your bagels and enjoy the ocean breeze!
-                    </div>
-                </details>
-
-                <details class="faq-item">
-                    <summary class="faq-question">⏰ What if I'm running a few minutes late?</summary>
-                    <div class="faq-answer">
-                        Don't stress! All preorders are paid and reserved specifically for you. We hold all preorders until the end of the pickup window. If you're delayed or have an unexpected change of plans, shoot us a quick note at <a href="mailto:hello@beachnbagels.com" style="color: var(--teal); font-weight: bold;">hello@beachnbagels.com</a> and we will work with you.
-                    </div>
-                </details>
-
-                <details class="faq-item">
-                    <summary class="faq-question">🔪 Are the bagels sliced or toasted?</summary>
-                    <div class="faq-answer">
-                        Our bagels are handed out freshly baked and <strong>unsliced</strong>! Keeping them intact preserves the delicate blistered crust and keeps the soft, chewy interior moist. For the best experience, use a serrated bread knife to slice them right before eating.
-                    </div>
-                </details>
-
-                <details class="faq-item">
-                    <summary class="faq-question">🧊 How should I store and freeze my bagels?</summary>
-                    <div class="faq-answer">
-                        Our bagels are made with traditional methods and zero artificial preservatives. They are at their absolute peak on Saturday morning! For any bagels you plan to enjoy later in the week: slice them in half, place them into a sealed freezer bag, and freeze them immediately. Pop them straight from the freezer into your toaster for a bakery-fresh crunch.
-                    </div>
-                </details>
-
-                <details class="faq-item">
-                    <summary class="faq-question">🧈 Do you offer cream cheese or spreads?</summary>
-                    <div class="faq-answer">
-                        For our pop-ups, our baker focuses 100% on hand-rolling, kettle boiling, and baking the freshest craft bagels possible! We currently sell exclusively whole dozens and half dozens. We encourage you to bring your favorite schmears, butter, or beach picnic spreads.
-                    </div>
-                </details>
-            </div>
+        <!-- Pop-Up FAQ Button (Opens Modal or links to /faq.html) -->
+        <div style="text-align: center; margin: 26px auto 10px auto;">
+            <button type="button" onclick="openFaqModal()" style="background: var(--white); border: 2px solid var(--teal); color: var(--teal); border-radius: 50px; padding: 10px 22px; font-family: 'Fredoka', sans-serif; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(42,90,102,0.08);">
+                <span>🥯</span> Pop-Up FAQ & Pickup Guide →
+            </button>
         </div>
 
         <!-- Email Waitlist Form Section -->
@@ -714,8 +671,11 @@
 
         <!-- Footer -->
         <footer>
-            <p>&copy; <span id="currentYear"></span> Beach'n Bagels | California</p>
-            <p>Follow us (and Ollie the Otter) on <a href="https://www.instagram.com/beachnbagels805/" target="_blank">Instagram</a></p>
+            <p>&copy; <span id="currentYear"></span> Beach'n Bagels</p>
+            <p>
+                <a href="/faq.html" style="color: var(--teal); font-weight: bold; margin-right: 12px; text-decoration: underline;">Pop-Up FAQ & Guide</a> • 
+                Follow us (and Ollie the Otter) on <a href="https://www.instagram.com/beachnbagels805/" target="_blank">Instagram</a>
+            </p>
         </footer>
     </div>
 
@@ -795,6 +755,29 @@
         </div>
     </div>
 
+    <!-- Pop-Up FAQ Modal -->
+    <div id="faqModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; text-align: left;">
+            <div class="modal-header" style="margin-bottom: 12px;">
+                <div>
+                    <h2 style="font-family:'Fredoka',sans-serif; color:var(--teal); font-size: 1.55rem; margin-bottom: 2px;">Pop-Up FAQ & Guide 🥯</h2>
+                    <a href="/faq.html" target="_blank" style="font-size: 0.8rem; color: var(--teal); opacity: 0.8; text-decoration: underline;">Open in separate page ↗</a>
+                </div>
+                <button type="button" class="modal-close" onclick="closeFaqModal()">&times;</button>
+            </div>
+            
+            <div class="faq-accordion" id="modalFaqAccordion" style="margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="text-align: center; padding: 20px; opacity: 0.7;">Loading questions...</div>
+            </div>
+
+            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px dashed rgba(42,90,102,0.2);">
+                <button type="button" class="btn-primary" onclick="closeFaqModal()" style="padding: 10px 24px; font-size: 0.95rem;">
+                    Got it, thanks!
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Application Script -->
     <script>
         const firebaseConfig = {
@@ -815,6 +798,74 @@
         // Dynamic Copyright Year
         const currentYearEl = document.getElementById("currentYear");
         if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
+
+        // FAQ Logic & Defaults
+        const DEFAULT_FAQS = [
+            {
+                id: "faq_pickup",
+                question: "📍 Where and how do I pick up my bagels?",
+                answer: "Look for Ollie the Otter and our signature teal Beach'n Bagels tent set up at the announced pop-up location! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you."
+            },
+            {
+                id: "faq_parking",
+                question: "🚗 Where should I park?",
+                answer: "Parking is typically available along nearby public streets and local beach lots at our pop-up spots. Exact parking tips and coordinates are included in your order receipt and drop announcement. We recommend arriving anytime within the pickup window to grab your bagels and enjoy the ocean breeze!"
+            },
+            {
+                id: "faq_late",
+                question: "⏰ What if I'm running a few minutes late?",
+                answer: "Don't stress! All preorders are paid and reserved specifically for you. We hold all preorders until the end of the pickup window. If you're delayed or have an unexpected change of plans, shoot us a quick note at hello@beachnbagels.com and we will work with you."
+            },
+            {
+                id: "faq_sliced",
+                question: "🔪 Are the bagels sliced or toasted?",
+                answer: "Our bagels are handed out freshly baked and unsliced! Keeping them intact preserves the delicate blistered crust and keeps the soft, chewy interior moist. For the best experience, use a serrated bread knife to slice them right before eating."
+            },
+            {
+                id: "faq_storage",
+                question: "🧊 How should I store and freeze my bagels?",
+                answer: "Our bagels are made with traditional methods and zero artificial preservatives. They are at their absolute peak on Saturday morning! For any bagels you plan to enjoy later in the week: slice them in half, place them into a sealed freezer bag, and freeze them immediately. Pop them straight from the freezer into your toaster for a bakery-fresh crunch."
+            },
+            {
+                id: "faq_spreads",
+                question: "🧈 Do you offer cream cheese or spreads?",
+                answer: "For our pop-ups, our baker focuses 100% on hand-rolling, kettle boiling, and baking the freshest craft bagels possible! We currently sell exclusively whole dozens and half dozens. We encourage you to bring your favorite schmears, butter, or beach picnic spreads."
+            }
+        ];
+
+        function renderFaqModal(items) {
+            const container = document.getElementById("modalFaqAccordion");
+            if (!container) return;
+            const list = (items && items.length > 0) ? items : DEFAULT_FAQS;
+            container.innerHTML = list.map((item, idx) => `
+                <details class="faq-item" ${idx === 0 ? "open" : ""}>
+                    <summary class="faq-question">${item.question || ""}</summary>
+                    <div class="faq-answer">${item.answer || ""}</div>
+                </details>
+            `).join("");
+        }
+
+        window.openFaqModal = function() {
+            const modal = document.getElementById("faqModal");
+            if (modal) modal.style.display = "flex";
+        };
+
+        window.closeFaqModal = function() {
+            const modal = document.getElementById("faqModal");
+            if (modal) modal.style.display = "none";
+        };
+
+        // Listen for live FAQ updates from Firestore
+        db.collection("content").doc("faq").onSnapshot((doc) => {
+            if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) {
+                renderFaqModal(doc.data().items);
+            } else {
+                renderFaqModal(DEFAULT_FAQS);
+            }
+        }, (err) => {
+            console.warn("Using default FAQs:", err);
+            renderFaqModal(DEFAULT_FAQS);
+        });
 
         // State
         let currentDrop = null;

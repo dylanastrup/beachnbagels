@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pop-Up FAQ & Pickup Guide | Beach'n Bagels</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://beachnbagels.com/faq.html">
+    <meta property="og:title" content="Pop-Up FAQ & Pickup Guide | Beach'n Bagels">
+    <meta property="og:description" content="Everything you need to know about picking up, slicing, freezing, and enjoying our hand-rolled pop-up bagels.">
+    <meta property="og:image" content="https://beachnbagels.com/favicon.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Firebase Compat SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --teal: #2A5A66;
+            --teal-dark: #1E414A;
+            --teal-light: #EBF2F4;
+            --gold: #FDBB4C;
+            --gold-hover: #e5a73e;
+            --cream: #FDF6E9;
+            --white: #FFFFFF;
+            --gray-200: #E5E7EB;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--cream);
+            color: var(--teal-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px 60px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            text-align: center;
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed rgba(42, 90, 102, 0.2);
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--white);
+            color: var(--teal);
+            border: 2px solid var(--teal);
+            padding: 8px 18px;
+            border-radius: 50px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-back:hover {
+            background: var(--teal);
+            color: var(--gold);
+        }
+
+        .logo-small {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--teal);
+            object-fit: cover;
+        }
+
+        h1 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 2.1rem;
+            color: var(--teal);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 1.05rem;
+            opacity: 0.85;
+            margin-bottom: 30px;
+        }
+
+        .faq-accordion {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            text-align: left;
+            margin-bottom: 40px;
+        }
+
+        .faq-item {
+            background: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .faq-item[open] {
+            box-shadow: 0 6px 18px rgba(42, 90, 102, 0.12);
+        }
+
+        .faq-question {
+            padding: 18px 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.1rem;
+            color: var(--teal);
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            font-weight: 600;
+        }
+
+        .faq-question::-webkit-details-marker {
+            display: none;
+        }
+
+        .faq-question::after {
+            content: '＋';
+            font-size: 1.3rem;
+            color: var(--gold);
+            font-weight: bold;
+            transition: transform 0.2s ease;
+        }
+
+        .faq-item[open] .faq-question::after {
+            content: '−';
+            color: var(--teal);
+        }
+
+        .faq-answer {
+            padding: 0 20px 20px 20px;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            color: var(--teal-dark);
+            border-top: 1px dashed rgba(42, 90, 102, 0.15);
+            padding-top: 14px;
+            white-space: pre-line;
+        }
+
+        .cta-card {
+            background: var(--teal-light);
+            border: 2px solid var(--teal);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            background: var(--teal);
+            color: var(--gold);
+            border: 2px solid var(--teal);
+            padding: 12px 28px;
+            border-radius: 50px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(42, 90, 102, 0.2);
+            margin-top: 12px;
+        }
+
+        .btn-primary:hover {
+            background: var(--teal-dark);
+            transform: translateY(-2px);
+        }
+
+        footer {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        footer a {
+            color: var(--teal);
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Top Nav -->
+        <div class="top-nav">
+            <a href="/" class="btn-back">← Back to Preorders</a>
+            <a href="/">
+                <img src="favicon.png" alt="Beach'n Bagels Logo" class="logo-small">
+            </a>
+        </div>
+
+        <h1>Pop-Up FAQ & Pickup Guide 🥯</h1>
+        <p class="subtitle">Everything you need to know about our beachside drops.</p>
+
+        <!-- Dynamic FAQ Accordion -->
+        <div class="faq-accordion" id="faqAccordion">
+            <div style="text-align: center; padding: 30px; opacity: 0.7;">Loading questions...</div>
+        </div>
+
+        <!-- Preorder CTA Card -->
+        <div class="cta-card">
+            <h3 style="font-family:'Fredoka',sans-serif; font-size:1.35rem; color:var(--teal); margin-bottom: 6px;">Ready to snag fresh bagels?</h3>
+            <p style="font-size:0.95rem; opacity:0.85;">Check our live preorder menu or join the Bagel Club waitlist for upcoming drop dates.</p>
+            <a href="/" class="btn-primary">View Preorder Menu →</a>
+        </div>
+
+        <footer>
+            <p>&copy; <span id="currentYear"></span> Beach'n Bagels</p>
+            <p>Follow us (and Ollie the Otter) on <a href="https://www.instagram.com/beachnbagels805/" target="_blank">Instagram</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById("currentYear").textContent = new Date().getFullYear();
+
+        const DEFAULT_FAQS = [
+            {
+                id: "faq_pickup",
+                question: "📍 Where and how do I pick up my bagels?",
+                answer: "Look for Ollie the Otter and our signature teal Beach'n Bagels tent set up at the announced pop-up location! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you."
+            },
+            {
+                id: "faq_parking",
+                question: "🚗 Where should I park?",
+                answer: "Parking is typically available along nearby public streets and local beach lots at our pop-up spots. Exact parking tips and coordinates are included in your order receipt and drop announcement. We recommend arriving anytime within the pickup window to grab your bagels and enjoy the ocean breeze!"
+            },
+            {
+                id: "faq_late",
+                question: "⏰ What if I'm running a few minutes late?",
+                answer: "Don't stress! All preorders are paid and reserved specifically for you. We hold all preorders until the end of the pickup window. If you're delayed or have an unexpected change of plans, shoot us a quick note at hello@beachnbagels.com and we will work with you."
+            },
+            {
+                id: "faq_sliced",
+                question: "🔪 Are the bagels sliced or toasted?",
+                answer: "Our bagels are handed out freshly baked and unsliced! Keeping them intact preserves the delicate blistered crust and keeps the soft, chewy interior moist. For the best experience, use a serrated bread knife to slice them right before eating."
+            },
+            {
+                id: "faq_storage",
+                question: "🧊 How should I store and freeze my bagels?",
+                answer: "Our bagels are made with traditional methods and zero artificial preservatives. They are at their absolute peak on Saturday morning! For any bagels you plan to enjoy later in the week: slice them in half, place them into a sealed freezer bag, and freeze them immediately. Pop them straight from the freezer into your toaster for a bakery-fresh crunch."
+            },
+            {
+                id: "faq_spreads",
+                question: "🧈 Do you offer cream cheese or spreads?",
+                answer: "For our pop-ups, our baker focuses 100% on hand-rolling, kettle boiling, and baking the freshest craft bagels possible! We currently sell exclusively whole dozens and half dozens. We encourage you to bring your favorite schmears, butter, or beach picnic spreads."
+            }
+        ];
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAEOwp0RdxMkxXdBx6yJlhPhoXq6Vbi3Do",
+            authDomain: "beachnbagels.firebaseapp.com",
+            projectId: "beachnbagels",
+            storageBucket: "beachnbagels.firebasestorage.app",
+            messagingSenderId: "697659238755",
+            appId: "1:697659238755:web:58ebee2e4195cdc8744b56",
+            measurementId: "G-QWJ8540ZXF"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        function renderFaqs(items) {
+            const container = document.getElementById("faqAccordion");
+            if (!items || items.length === 0) {
+                container.innerHTML = `<p style="text-align: center; opacity: 0.7;">No FAQ items published yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map((item, idx) => `
+                <details class="faq-item" ${idx === 0 ? "open" : ""}>
+                    <summary class="faq-question">${item.question || ""}</summary>
+                    <div class="faq-answer">${item.answer || ""}</div>
+                </details>
+            `).join("");
+        }
+
+        // Listen for real-time FAQ updates from Firestore
+        db.collection("content").doc("faq").onSnapshot((doc) => {
+            if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) {
+                renderFaqs(doc.data().items);
+            } else {
+                renderFaqs(DEFAULT_FAQS);
+            }
+        }, (err) => {
+            console.warn("Could not load dynamic FAQ from Firestore, using defaults:", err);
+            renderFaqs(DEFAULT_FAQS);
+        });
+    </script>
+</body>
+</html>
