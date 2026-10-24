@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Beach'n Bagels | Hand-Rolled Craft Pop-up Bagels</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -188,13 +188,15 @@
             padding: 14px 18px;
             border: 2px solid var(--teal);
             border-radius: 50px;
-            font-size: 1rem;
+            font-size: 16px; /* 16px minimum prevents iOS Safari from forcibly zooming in */
             background-color: var(--white);
             color: var(--teal);
             font-family: 'Nunito', sans-serif;
             outline: none;
             width: 100%;
             transition: border-color 0.2s;
+            box-sizing: border-box;
+            -webkit-appearance: none;
         }
 
         input:focus {
@@ -330,16 +332,6 @@
             gap: 10px;
         }
 
-        @media (max-width: 640px) {
-            .flavor-card {
-                flex-direction: column !important;
-                align-items: stretch !important;
-            }
-            .bundle-options-col {
-                max-width: 100% !important;
-            }
-        }
-
         /* Quantity Stepper */
         .qty-stepper {
             display: flex;
@@ -348,20 +340,29 @@
         }
 
         .qty-btn {
-            width: 36px;
-            height: 36px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             border: 2px solid var(--teal);
             background: var(--gold);
             color: var(--teal);
             font-family: 'Fredoka', sans-serif;
-            font-size: 1.2rem;
+            font-size: 1.35rem;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .qty-btn:active:not(:disabled) {
+            background: var(--teal);
+            color: var(--gold);
+            transform: scale(0.92);
         }
 
         .qty-btn:hover:not(:disabled) {
@@ -376,9 +377,10 @@
 
         .qty-number {
             font-family: 'Fredoka', sans-serif;
-            font-size: 1.2rem;
-            width: 24px;
+            font-size: 1.25rem;
+            width: 28px;
             text-align: center;
+            user-select: none;
         }
 
         /* Sticky Cart Bar */
@@ -396,6 +398,7 @@
             margin-top: 20px;
             z-index: 100;
             border: 2px solid var(--gold);
+            box-sizing: border-box;
         }
 
         .cart-summary {
@@ -426,25 +429,133 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(42, 90, 102, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 200;
+            background: rgba(42, 90, 102, 0.65);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            box-sizing: border-box;
         }
 
         .modal-card {
             background: var(--cream);
             border: 3px solid var(--teal);
-            border-radius: 24px;
+            border-radius: 26px;
             max-width: 500px;
             width: 100%;
-            padding: 28px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+            padding: 28px 24px;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.22);
             text-align: left;
             max-height: 90vh;
             overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .sheet-drag-handle {
+            display: none;
+            width: 44px;
+            height: 5px;
+            background: rgba(42, 90, 102, 0.25);
+            border-radius: 10px;
+            margin: 0 auto 14px auto;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 14px 12px 30px;
+            }
+
+            body.has-cart-active {
+                padding-bottom: 96px !important;
+            }
+
+            .logo {
+                width: 150px;
+                height: 150px;
+            }
+
+            h1 {
+                font-size: 2.05rem;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .flavor-card {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                padding: 16px 14px;
+                gap: 12px;
+            }
+
+            .bundle-options-col {
+                max-width: 100% !important;
+                gap: 8px;
+            }
+
+            .bundle-row {
+                padding: 10px 12px;
+            }
+
+            /* Floating Thumb-Friendly Mobile Cart Pill */
+            .cart-bar {
+                position: fixed !important;
+                bottom: max(14px, env(safe-area-inset-bottom, 14px)) !important;
+                left: 12px !important;
+                right: 12px !important;
+                margin: 0 auto !important;
+                width: calc(100% - 24px) !important;
+                max-width: 480px !important;
+                border-radius: 40px !important;
+                padding: 12px 18px !important;
+                z-index: 999 !important;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
+                animation: cartPopUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+
+            .cart-bar .cart-summary {
+                font-size: 1.05rem !important;
+            }
+
+            .cart-bar .btn-primary {
+                padding: 10px 18px !important;
+                font-size: 0.92rem !important;
+            }
+
+            /* Mobile Native Bottom Sheet Drawer */
+            .modal-overlay {
+                align-items: flex-end !important;
+                padding: 0 !important;
+            }
+
+            .modal-card {
+                border-bottom-left-radius: 0 !important;
+                border-bottom-right-radius: 0 !important;
+                border-top-left-radius: 26px !important;
+                border-top-right-radius: 26px !important;
+                border-bottom: none !important;
+                max-width: 100% !important;
+                max-height: 88vh !important;
+                padding: 16px 20px max(24px, env(safe-area-inset-bottom, 24px)) 20px !important;
+                animation: sheetSlideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
+            }
+
+            .sheet-drag-handle {
+                display: block !important;
+            }
+        }
+
+        @keyframes cartPopUp {
+            from { transform: translateY(60px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes sheetSlideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
         }
 
         .modal-header {
@@ -687,6 +798,7 @@
     <!-- Order Confirmation Success Modal -->
     <div id="orderSuccessModal" class="modal-overlay" style="display: none;">
         <div class="modal-card" style="text-align: center; max-width: 460px;">
+            <div class="sheet-drag-handle"></div>
             <div style="font-size: 3.2rem; margin-bottom: 12px; animation: bounce 1s infinite alternate;">🎉🥯</div>
             <h2 style="font-family:'Fredoka',sans-serif; color:var(--teal); font-size: 1.8rem; margin-bottom: 8px;">Order Confirmed!</h2>
             <p style="font-size: 1rem; color: var(--teal-dark); margin-bottom: 18px; line-height: 1.5;">
@@ -717,9 +829,10 @@
     <!-- Checkout Modal -->
     <div id="checkoutModal" class="modal-overlay">
         <div class="modal-card">
+            <div class="sheet-drag-handle"></div>
             <div class="modal-header">
                 <h2 style="font-family:'Fredoka',sans-serif; color:var(--teal);">Preorder Pickup Details</h2>
-                <button class="modal-close" id="btnCloseCheckout">&times;</button>
+                <button class="modal-close" id="btnCloseCheckout" aria-label="Close checkout">&times;</button>
             </div>
             
             <div style="background:var(--white); border:2px solid var(--teal); border-radius:14px; padding:14px; margin-bottom:18px;">
@@ -732,16 +845,16 @@
 
             <form id="checkoutForm" style="display:flex; flex-direction:column; gap:12px;">
                 <div>
-                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Full Name</label>
-                    <input type="text" id="custName" placeholder="e.g. Dylan Astrup" required>
+                    <label for="custName" style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Full Name</label>
+                    <input type="text" id="custName" name="name" autocomplete="name" autocorrect="off" enterkeyhint="next" placeholder="e.g. Dylan Astrup" required>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Email</label>
-                    <input type="email" id="custEmail" placeholder="you@example.com" required>
+                    <label for="custEmail" style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Email Address</label>
+                    <input type="email" id="custEmail" name="email" autocomplete="email" inputmode="email" spellcheck="false" enterkeyhint="next" placeholder="you@example.com" required>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Phone Number</label>
-                    <input type="tel" id="custPhone" placeholder="(805) 555-0123" required>
+                    <label for="custPhone" style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Mobile Phone (for pickup updates)</label>
+                    <input type="tel" id="custPhone" name="tel" autocomplete="tel" inputmode="tel" enterkeyhint="done" placeholder="(805) 555-0123" required>
                 </div>
                 
                 <div style="background: #FEF3C7; border: 1.5px solid #F59E0B; border-radius: 10px; padding: 10px 12px; margin-top: 6px; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: #92400E; line-height: 1.4;">
@@ -753,7 +866,7 @@
                     💳 Secure payment powered by Stripe. Apple Pay, Google Pay, and cards accepted.
                 </p>
 
-                <button type="submit" id="btnPayWithStripe" class="btn-primary" style="margin-top:10px; width:100%;">
+                <button type="submit" id="btnPayWithStripe" class="btn-primary" style="margin-top:10px; width:100%; min-height: 50px;">
                     Pay & Reserve Bagels
                 </button>
             </form>
@@ -763,6 +876,7 @@
     <!-- Pop-Up FAQ Modal -->
     <div id="faqModal" class="modal-overlay" style="display: none;">
         <div class="modal-card" style="max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; text-align: left;">
+            <div class="sheet-drag-handle"></div>
             <div class="modal-header" style="margin-bottom: 12px;">
                 <div>
                     <h2 style="font-family:'Fredoka',sans-serif; color:var(--teal); font-size: 1.55rem; margin-bottom: 2px;">Pop-Up FAQ & Guide 🥯</h2>
@@ -1457,8 +1571,10 @@
 
             if (totalBagels > 0 && isDropActive()) {
                 cartBar.style.display = "flex";
+                document.body.classList.add("has-cart-active");
             } else {
                 cartBar.style.display = "none";
+                document.body.classList.remove("has-cart-active");
             }
         }
 

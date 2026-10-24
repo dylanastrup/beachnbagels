@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <title>Pop-Up FAQ & Pickup Guide | Beach'n Bagels</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -207,6 +207,23 @@
             color: var(--teal);
             text-decoration: none;
             font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 18px 14px 40px 14px;
+            }
+            h1 {
+                font-size: 1.85rem;
+            }
+            .faq-question {
+                padding: 16px 16px;
+                font-size: 1.02rem;
+            }
+            .faq-answer {
+                padding: 0 16px 16px 16px;
+                font-size: 0.95rem;
+            }
         }
     </style>
 </head>
