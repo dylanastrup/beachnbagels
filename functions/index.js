@@ -27,25 +27,25 @@ function getResendClient() {
   return new Resend(key);
 }
 
-async function sendAdminEmail({ subject, html }) {
+async function sendGenericEmail({ to, subject, html }) {
   const resend = getResendClient();
   const primaryFrom = "Beach'n Bagels <orders@beachnbagels.com>";
   const fallbackFrom = "Beach'n Bagels <onboarding@resend.dev>";
-  const to = [process.env.ADMIN_ALERT_EMAIL || "dylanastrup@gmail.com"];
+  const recipients = Array.isArray(to) ? to : [to];
 
   try {
     const res = await resend.emails.send({
       from: primaryFrom,
-      to,
+      to: recipients,
       subject,
       html
     });
     if (res && res.error) {
       if (res.error.message && res.error.message.includes("not verified")) {
-        console.log("Domain beachnbagels.com not verified yet in Resend, using onboarding@resend.dev fallback");
+        console.log("Domain beachnbagels.com not verified yet in Resend, attempting onboarding@resend.dev fallback");
         return await resend.emails.send({
           from: fallbackFrom,
-          to,
+          to: recipients,
           subject,
           html
         });
@@ -57,17 +57,23 @@ async function sendAdminEmail({ subject, html }) {
     if (err.message && err.message.includes("not verified")) {
       return await resend.emails.send({
         from: fallbackFrom,
-        to,
+        to: recipients,
         subject,
         html
       });
     }
-    console.error("Failed to send admin email alert:", err);
+    console.error("Failed to send email:", err);
   }
 }
 
-async function sendNewOrderAlert({ session, customerName, customerEmail, customerPhone, items, dropId }) {
+async function sendAdminEmail({ subject, html }) {
+  const to = [process.env.ADMIN_ALERT_EMAIL || "dylanastrup@gmail.com"];
+  return sendGenericEmail({ to, subject, html });
+}
+
+async function sendNewOrderAlert({ session, customerName, customerEmail, customerPhone, items, drop }) {
   const totalDollars = ((session.amount_total || 0) / 100).toFixed(2);
+  const dropTitle = (drop && drop.title) || "Pop-Up Drop";
   const itemsHtml = (items || []).map(item => `
     <tr style="border-bottom: 1px solid #e5e5e5;">
       <td style="padding: 10px 0; color: #1E414A;">
@@ -87,7 +93,7 @@ async function sendNewOrderAlert({ session, customerName, customerEmail, custome
         <div style="text-align: center; margin-bottom: 16px;">
           <span style="font-size: 2.5rem;">🥯</span>
           <h2 style="color: #2A5A66; margin: 8px 0 4px 0; font-size: 1.6rem;">New Bagel Preorder Received!</h2>
-          <p style="font-size: 0.95rem; margin: 0; opacity: 0.85;">Payment confirmed via Stripe</p>
+          <p style="font-size: 0.95rem; margin: 0; opacity: 0.85;">Drop: <strong>${dropTitle}</strong> • Payment confirmed via Stripe</p>
         </div>
         
         <div style="background: #ffffff; padding: 16px; border-radius: 10px; border: 1px solid #e5e5e5; margin-bottom: 16px;">
@@ -115,6 +121,86 @@ async function sendNewOrderAlert({ session, customerName, customerEmail, custome
         </div>
       </div>
     `
+  });
+}
+
+async function sendCustomerConfirmationEmail({ session, customerName, customerEmail, customerPhone, items, drop }) {
+  if (!customerEmail) return;
+
+  const totalDollars = ((session.amount_total || 0) / 100).toFixed(2);
+  const dropTitle = (drop && drop.title) || "Beach'n Bagels Pop-Up Drop";
+  const pickupWindow = (drop && drop.pickupWindow) || "Saturday Morning";
+  const pickupLocation = (drop && drop.pickupLocation) || "Silver Strand Beach, Oxnard, CA";
+  const customNotes = (drop && (drop.confirmationNotes || drop.description)) || "";
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pickupLocation)}`;
+
+  const itemsHtml = (items || []).map(item => `
+    <tr style="border-bottom: 1px solid #e5e5e5;">
+      <td style="padding: 10px 0; color: #1E414A;">
+        <strong>${item.quantity}x</strong> ${item.flavorName || "Bagels"}
+        <div style="font-size: 0.85rem; color: #737373;">${item.bundleLabel || item.bundle || ""}</div>
+      </td>
+      <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #2A5A66;">
+        $${(item.subtotal || 0).toFixed(2)}
+      </td>
+    </tr>
+  `).join("");
+
+  const emailHtml = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 2px solid #2A5A66; border-radius: 14px; background: #FDF6E9; color: #1E414A;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://beachnbagels.com/favicon.png" alt="Beach'n Bagels Logo" style="width: 75px; height: 75px; border-radius: 50%; border: 2px solid #2A5A66; object-fit: cover;">
+        <h1 style="font-size: 1.65rem; color: #2A5A66; margin: 10px 0 4px 0;">You're All Set! 🥯</h1>
+        <p style="font-size: 1rem; color: #1E414A; margin: 0;">Thanks for preordering with Beach'n Bagels, <strong>${customerName}</strong>!</p>
+      </div>
+
+      <div style="background: #ffffff; border: 2px solid #2A5A66; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 0.9rem; color: #2A5A66; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px;">
+          📍 Pickup Details
+        </h3>
+        <p style="margin: 6px 0; font-size: 0.95rem;"><strong>Drop:</strong> ${dropTitle}</p>
+        <p style="margin: 6px 0; font-size: 0.95rem;"><strong>⏰ Window:</strong> ${pickupWindow}</p>
+        <p style="margin: 6px 0; font-size: 0.95rem;"><strong>📍 Location:</strong> ${pickupLocation}</p>
+        <div style="margin-top: 10px;">
+          <a href="${mapsUrl}" target="_blank" style="display: inline-block; background: #EBF2F4; color: #2A5A66; border: 1.5px solid #2A5A66; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; text-decoration: none;">
+            📍 Open in Google Maps ↗
+          </a>
+        </div>
+        ${customNotes ? `
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed #e5e5e5; font-size: 0.9rem; line-height: 1.45; color: #2A5A66; white-space: pre-line;">
+            📝 <strong>Pickup Instructions & Notes:</strong><br>${customNotes}
+          </div>
+        ` : ''}
+      </div>
+
+      <div style="background: #ffffff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 0.9rem; color: #2A5A66; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px;">
+          🥯 Order Summary
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+          ${itemsHtml}
+          <tr>
+            <td style="padding: 14px 0 0 0; font-weight: bold; font-size: 1.15rem; color: #2A5A66;">Total Paid:</td>
+            <td style="padding: 14px 0 0 0; text-align: right; font-weight: bold; font-size: 1.15rem; color: #2A5A66;">$${totalDollars}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem; color: #92400E; line-height: 1.45;">
+        <strong>When you arrive:</strong> Look for Ollie the Otter and our teal pop-up tent on the sand! Simply give your name (<strong>${customerName}</strong>) at the table and we'll hand you your fresh, hand-rolled bagels.
+      </div>
+
+      <div style="text-align: center; font-size: 0.85rem; opacity: 0.8; line-height: 1.5;">
+        Questions or running late? Reply directly to this email or reach us at <a href="mailto:hello@beachnbagels.com" style="color: #2A5A66; font-weight: bold;">hello@beachnbagels.com</a>.<br>
+        See you at Silver Strand! 🌊🥯
+      </div>
+    </div>
+  `;
+
+  await sendGenericEmail({
+    to: [customerEmail],
+    subject: `🥯 Preorder Confirmed! Beach'n Bagels - ${dropTitle}`,
+    html: emailHtml
   });
 }
 
@@ -531,7 +617,14 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
 
       console.log(`Order ${session.id} successfully recorded.`);
 
-      // Send instant email notification to baker
+      // Fetch drop details for rich email formatting
+      let dropData = null;
+      try {
+        const dSnap = await db.collection("drops").doc(dropId).get();
+        if (dSnap.exists) dropData = dSnap.data();
+      } catch (_) {}
+
+      // 1. Send baker notification email
       try {
         await sendNewOrderAlert({
           session,
@@ -539,10 +632,26 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
           customerEmail,
           customerPhone,
           items,
-          dropId
+          drop: dropData
         });
       } catch (emailErr) {
         console.error("Failed to send order alert email:", emailErr);
+      }
+
+      // 2. Send customer confirmation email with pickup details
+      if (customerEmail) {
+        try {
+          await sendCustomerConfirmationEmail({
+            session,
+            customerName,
+            customerEmail,
+            customerPhone,
+            items,
+            drop: dropData
+          });
+        } catch (custEmailErr) {
+          console.error("Failed to send customer confirmation email:", custEmailErr);
+        }
       }
     } catch (err) {
       console.error(`Transaction failed for session ${session.id}:`, err);
@@ -719,5 +828,146 @@ exports.submitWaitlist = onRequest({ cors: true }, async (req, res) => {
   } catch (err) {
     console.error("Failed to add waitlist subscriber:", err);
     return res.status(500).json({ error: err.message || "Failed to join waitlist" });
+  }
+});
+
+/**
+ * Broadcasts an announcement email to waitlist subscribers when a drop is live.
+ * Supports testOnly: true to send a preview to the baker before blasting.
+ */
+exports.broadcastDropToWaitlist = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  const { dropId, subject, headline, message, testOnly, testEmail } = req.body || {};
+
+  // Load drop details
+  let drop = null;
+  if (dropId) {
+    try {
+      const dSnap = await db.collection("drops").doc(dropId).get();
+      if (dSnap.exists) drop = dSnap.data();
+    } catch (_) {}
+  }
+
+  const dropTitle = (drop && drop.title) || "New Pop-Up Drop";
+  const pickupWindow = (drop && drop.pickupWindow) || "Saturday Morning";
+  const pickupLocation = (drop && drop.pickupLocation) || "Silver Strand Beach, Oxnard";
+
+  const emailSubject = subject || `🥯 Fresh Bagels Alert: Preorders are LIVE for ${dropTitle}!`;
+  const emailHeadline = headline || `Preorders Are Live for ${dropTitle}!`;
+  const emailMessage = message || `We’re firing up the kettle and hand-rolling fresh bagels for our upcoming beach drop at ${pickupLocation}. Quantities are limited—preorder yours now before we sell out!`;
+
+  const emailHtml = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 2px solid #2A5A66; border-radius: 14px; background: #FDF6E9; color: #1E414A;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://beachnbagels.com/favicon.png" alt="Beach'n Bagels Logo" style="width: 75px; height: 75px; border-radius: 50%; border: 2px solid #2A5A66; object-fit: cover;">
+        <h1 style="font-size: 1.65rem; color: #2A5A66; margin: 10px 0 4px 0;">${emailHeadline}</h1>
+        <p style="font-size: 1rem; color: #1E414A; margin: 0;">Beach'n Bagels Pop-Up Alert</p>
+      </div>
+
+      <div style="background: #ffffff; border: 2px solid #2A5A66; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <div style="font-size: 1rem; line-height: 1.55; color: #1E414A; white-space: pre-line; margin-bottom: 16px;">
+          ${emailMessage}
+        </div>
+        
+        <div style="background: #EBF2F4; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; border-left: 4px solid #2A5A66;">
+          <p style="margin: 4px 0;"><strong>📍 Location:</strong> ${pickupLocation}</p>
+          <p style="margin: 4px 0;"><strong>⏰ Pickup Window:</strong> ${pickupWindow}</p>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin: 26px 0;">
+        <a href="https://beachnbagels.com" target="_blank" style="background: #2A5A66; color: #FDBB4C; padding: 14px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; display: inline-block; box-shadow: 0 4px 12px rgba(42,90,102,0.25);">
+          Preorder Your Bagels Now →
+        </a>
+      </div>
+
+      <div style="text-align: center; font-size: 0.8rem; opacity: 0.75; line-height: 1.4; border-top: 1px dashed rgba(42,90,102,0.2); padding-top: 14px;">
+        You received this because you signed up for the Beach'n Bagels Club at beachnbagels.com.<br>
+        Oxnard, CA • Hand-rolled, boiled and baked fresh.
+      </div>
+    </div>
+  `;
+
+  if (testOnly) {
+    const targetEmail = testEmail || process.env.ADMIN_ALERT_EMAIL || "dylanastrup@gmail.com";
+    await sendGenericEmail({
+      to: [targetEmail],
+      subject: `[TEST PREVIEW] ${emailSubject}`,
+      html: emailHtml
+    });
+    return res.status(200).json({ success: true, test: true, recipient: targetEmail });
+  }
+
+  // Live broadcast: load waitlist emails
+  try {
+    const snapshot = await db.collection("waitlist").get();
+    const emails = [];
+    snapshot.forEach(doc => {
+      const em = doc.data().email;
+      if (em && em.includes("@")) emails.push(em.toLowerCase().trim());
+    });
+
+    const uniqueEmails = Array.from(new Set(emails));
+    let sentCount = 0;
+
+    for (const recipient of uniqueEmails) {
+      try {
+        await sendGenericEmail({
+          to: [recipient],
+          subject: emailSubject,
+          html: emailHtml
+        });
+        sentCount++;
+      } catch (sendErr) {
+        console.warn(`Failed to send broadcast to ${recipient}:`, sendErr.message);
+      }
+    }
+
+    return res.status(200).json({ success: true, count: sentCount, total: uniqueEmails.length });
+  } catch (err) {
+    console.error("Failed to broadcast to waitlist:", err);
+    return res.status(500).json({ error: err.message || "Failed to broadcast" });
+  }
+});
+
+/**
+ * Sends a test customer order confirmation receipt to the baker
+ * so they can review pickup notes and layout before launch.
+ */
+exports.sendTestOrderReceipt = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  const { dropId, recipientEmail } = req.body || {};
+  const targetEmail = recipientEmail || process.env.ADMIN_ALERT_EMAIL || "dylanastrup@gmail.com";
+
+  let drop = null;
+  if (dropId) {
+    try {
+      const snap = await db.collection("drops").doc(dropId).get();
+      if (snap.exists) drop = snap.data();
+    } catch (_) {}
+  }
+
+  try {
+    await sendCustomerConfirmationEmail({
+      session: { amount_total: 4600 },
+      customerName: "Dylan Astrup (Test Preview)",
+      customerEmail: targetEmail,
+      customerPhone: "(805) 555-0123",
+      items: [
+        { flavorName: "Everything", quantity: 1, bundle: "dozen", price: 28 },
+        { flavorName: "Plain", quantity: 1, bundle: "half", price: 18 }
+      ],
+      drop
+    });
+    return res.status(200).json({ success: true, recipient: targetEmail });
+  } catch (err) {
+    console.error("Failed to send test customer receipt:", err);
+    return res.status(500).json({ error: err.message || "Failed to send test receipt" });
   }
 });

@@ -271,6 +271,74 @@
             margin: 80px auto;
             text-align: center;
         }
+
+        /* Print Layouts */
+        #packingSlipsPrintArea {
+            display: none;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            header, .tabs, .card-header button, .card-header select, .card-header label, 
+            #ordersStatsBar, #orderSearch, #orderStatusFilter, #ordersScopeSelect,
+            .modal-overlay, #authGate {
+                display: none !important;
+            }
+
+            /* Printing prep sheet */
+            body.print-mode-prep #prepTab {
+                display: block !important;
+            }
+            body.print-mode-prep #dropsTab,
+            body.print-mode-prep #ordersTab,
+            body.print-mode-prep #waitlistTab,
+            body.print-mode-prep #packingSlipsPrintArea {
+                display: none !important;
+            }
+
+            /* Printing packing slips */
+            body.print-mode-slips #prepTab,
+            body.print-mode-slips #dropsTab,
+            body.print-mode-slips #ordersTab,
+            body.print-mode-slips #waitlistTab {
+                display: none !important;
+            }
+            body.print-mode-slips #packingSlipsPrintArea {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .packing-slip {
+                border: 2px dashed #1E414A;
+                border-radius: 12px;
+                padding: 16px;
+                background: #ffffff;
+                color: #000000;
+                page-break-inside: avoid;
+                font-size: 0.95rem;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                min-height: 230px;
+                box-sizing: border-box;
+            }
+
+            .prep-stat-card {
+                border: 2px solid #333 !important;
+                background: #fff !important;
+            }
+            .prep-stat-number {
+                color: #000 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -346,6 +414,8 @@
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button class="btn btn-sm btn-gold" onclick="openCreateDropModal()">+ Create New Drop</button>
                             <button class="btn btn-sm btn-teal" id="btnEditDrop" onclick="openEditDropModal()">✏️ Edit Drop</button>
+                            <button class="btn btn-sm" style="background: var(--teal-light); color: var(--teal); border: 2px solid var(--teal);" onclick="openBroadcastModal()">📣 Announce to Waitlist</button>
+                            <button class="btn btn-sm" style="background: #FEF3C7; color: #92400E; border: 2px solid #F59E0B;" onclick="sendTestOrderReceiptEmail()" title="Send sample customer confirmation email to yourself">✉️ Test Customer Receipt</button>
                             <button class="btn btn-sm" id="btnDeleteDrop" style="background: #fee2e2; border-color: #ef4444; color: #991b1b; padding: 6px 12px;" onclick="deleteCurrentDrop()" title="Delete this drop">🗑️</button>
                         </div>
                     </div>
@@ -396,7 +466,7 @@
                             <h2 class="card-title">Baker's Morning Prep Sheet — <span id="prepSheetDropName" style="color: var(--teal-dark);">Selected Drop</span></h2>
                             <p style="font-size: 0.85rem; opacity: 0.8;">Total bake counts aggregated across confirmed preorders for this drop.</p>
                         </div>
-                        <button onclick="window.print()" class="btn btn-gold btn-sm">🖨️ Print Prep Sheet</button>
+                        <button onclick="printBakePrepSheet()" class="btn btn-gold btn-sm">🖨️ Print Prep Sheet</button>
                     </div>
 
                     <div class="prep-grid" id="prepSummaryGrid">
@@ -414,6 +484,7 @@
                             <p style="font-size: 0.85rem; opacity: 0.8;" id="ordersDropSubtitle">Orders for currently selected drop.</p>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-gold" onclick="printPackingSlips()">🖨️ Print Packing Slips</button>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <label style="font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">View:</label>
                                 <select id="ordersScopeSelect" onchange="changeOrdersScope(this.value)" style="padding: 6px 12px; font-weight: 700; border-radius: 20px; font-size: 0.85rem; border: 2px solid var(--teal); background: var(--white); cursor: pointer;">
@@ -421,7 +492,15 @@
                                     <option value="all">All Drops Combined</option>
                                 </select>
                             </div>
-                            <input type="text" id="orderSearch" oninput="filterOrders()" placeholder="Search name or phone..." style="padding: 6px 12px; font-size: 0.9rem; width: 190px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">Status:</label>
+                                <select id="orderStatusFilter" onchange="filterOrders()" style="padding: 6px 12px; font-weight: 700; border-radius: 20px; font-size: 0.85rem; border: 2px solid var(--teal); background: var(--white); cursor: pointer;">
+                                    <option value="all">All Statuses</option>
+                                    <option value="unclaimed">⏳ Unclaimed Only</option>
+                                    <option value="picked_up">✅ Picked Up Only</option>
+                                </select>
+                            </div>
+                            <input type="text" id="orderSearch" oninput="filterOrders()" placeholder="Search name or phone..." style="padding: 6px 12px; font-size: 0.9rem; width: 180px;">
                         </div>
                     </div>
 
@@ -566,6 +645,12 @@
                     <div style="font-size: 0.78rem; opacity: 0.75; margin-top: 3px;">Shown to customers on the live homepage banner to share pickup directions or a baker's story.</div>
                 </div>
 
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Customer Email Receipt Notes (Optional)</label>
+                    <textarea id="modalDropConfirmationNotes" rows="2" placeholder="e.g. Please bring a tote bag or cooler if staying at the beach! Feel free to text us if running late." style="width: 100%; border: 2px solid var(--teal); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.95rem; resize: vertical;"></textarea>
+                    <div style="font-size: 0.78rem; opacity: 0.75; margin-top: 3px;">Included in the customer's email confirmation receipt under Pickup Details.</div>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                     <div>
                         <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Preorder Cutoff Date & Time</label>
@@ -598,10 +683,76 @@
         </div>
     </div>
 
+    <!-- Drop Announcement to Waitlist Modal -->
+    <div id="broadcastModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(42, 90, 102, 0.65); backdrop-filter: blur(4px); z-index: 300; align-items: center; justify-content: center; padding: 20px;">
+        <div class="card" style="max-width: 650px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 0; box-shadow: 0 16px 40px rgba(0,0,0,0.25);">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">📣 Announce Drop to Waitlist</h2>
+                    <p style="font-size: 0.82rem; opacity: 0.8; margin-top: 3px;">Send a branded email blast to all early supporters on your waitlist.</p>
+                </div>
+                <button type="button" onclick="closeBroadcastModal()" style="background: none; border: none; font-size: 1.6rem; color: var(--teal); cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            </div>
+
+            <div style="background: var(--teal-light); border: 1.5px solid var(--teal); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <span style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--teal);">Target Drop:</span>
+                    <strong id="broadcastDropTitle" style="color: var(--teal-dark); margin-left: 6px;">Active Drop</strong>
+                </div>
+                <div style="font-size: 0.9rem; font-weight: 800; color: var(--teal);">
+                    👥 <span id="broadcastSubscriberCount">0</span> Subscribers
+                </div>
+            </div>
+
+            <form id="broadcastForm" onsubmit="handleSendBroadcast(event)">
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Email Subject Line</label>
+                    <input type="text" id="broadcastSubject" required style="width: 100%; font-weight: 600;" oninput="updateBroadcastPreview()">
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Email Headline</label>
+                    <input type="text" id="broadcastHeadline" required style="width: 100%;" oninput="updateBroadcastPreview()">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Announcement Message Body</label>
+                    <textarea id="broadcastMessage" rows="4" required style="width: 100%; border: 2px solid var(--teal); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.95rem; resize: vertical;" oninput="updateBroadcastPreview()"></textarea>
+                    <div style="font-size: 0.78rem; opacity: 0.75; margin-top: 3px;">Feel free to mention specific flavors, baking schedule, or pickup instructions.</div>
+                </div>
+
+                <!-- Live Preview Box -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 6px; color: var(--teal);">Live Customer Email Preview:</label>
+                    <div id="broadcastPreviewBox" style="background: #FDF6E9; border: 2px solid var(--teal); border-radius: 12px; padding: 18px; color: #1E414A; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                        <!-- Updated live via updateBroadcastPreview() -->
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div style="background: var(--white); border-top: 1px solid var(--gray-200); padding-top: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <button type="button" class="btn btn-sm btn-teal" id="btnTestBroadcast" onclick="handleSendTestBroadcast()">
+                        🧪 Send Test to Me (<span id="testEmailTarget">baker</span>)
+                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-sm" style="background: var(--gray-200); color: #333;" onclick="closeBroadcastModal()">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-gold" id="btnLiveBroadcast">
+                            🚀 Send to All Subscribers
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Hidden Packing Slips Print Area (Populated dynamically before window.print()) -->
+    <div id="packingSlipsPrintArea"></div>
+
     <!-- Application Script -->
     <script>
         // 1. Admin Authentication Logic (Google Sign-In + Passcode Fallback)
         const ADMIN_PIN = "bagels805";
+        let currentUserEmail = "dylanastrup@gmail.com";
         const ALLOWED_ADMIN_EMAILS = [
             "dylanastrup@gmail.com",
             "dylan@beachnbagels.com",
@@ -634,6 +785,7 @@
                 const isWhitelisted = ALLOWED_ADMIN_EMAILS.length === 0 || ALLOWED_ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
 
                 if (isWhitelisted) {
+                    currentUserEmail = user.email || currentUserEmail;
                     if (authErrorMsg) authErrorMsg.style.display = "none";
                     authGate.style.display = "none";
                     mainDashboard.style.display = "block";
@@ -938,6 +1090,7 @@
             document.getElementById("modalDropWindow").value = "Saturday 8:00 AM - 11:00 AM";
             document.getElementById("modalDropLocation").value = "Silver Strand Beach (Near Jetty), Oxnard, CA";
             document.getElementById("modalDropDescription").value = "";
+            document.getElementById("modalDropConfirmationNotes").value = "";
             
             // Default cutoff to upcoming Friday noon
             const friday = new Date();
@@ -967,6 +1120,7 @@
             document.getElementById("modalDropWindow").value = drop.pickupWindow || "";
             document.getElementById("modalDropLocation").value = drop.pickupLocation || "";
             document.getElementById("modalDropDescription").value = drop.description || "";
+            document.getElementById("modalDropConfirmationNotes").value = drop.confirmationNotes || "";
 
             if (drop.cutoffAt) {
                 const dateObj = new Date(drop.cutoffAt.toDate ? drop.cutoffAt.toDate() : drop.cutoffAt);
@@ -994,6 +1148,7 @@
             const pickupWindow = document.getElementById("modalDropWindow").value.trim();
             const pickupLocation = document.getElementById("modalDropLocation").value.trim();
             const description = document.getElementById("modalDropDescription").value.trim();
+            const confirmationNotes = document.getElementById("modalDropConfirmationNotes").value.trim();
             const cutoffRaw = document.getElementById("modalDropCutoff").value;
             const status = document.getElementById("modalDropStatus").value;
             const includeStarters = document.getElementById("modalIncludeStarters").checked;
@@ -1019,6 +1174,7 @@
                         pickupWindow,
                         pickupLocation,
                         description,
+                        confirmationNotes,
                         cutoffAt: cutoffDate,
                         status
                     });
@@ -1028,10 +1184,33 @@
                         pickupWindow,
                         pickupLocation,
                         description,
+                        confirmationNotes,
                         cutoffAt: cutoffDate,
                         status,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+
+                    if (includeStarters) {
+                        for (const fl of defaultStarterFlavors) {
+                            await db.collection("drops").doc(newDropRef.id).collection("flavors").add({
+                                ...fl,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        }
+                    }
+
+                    currentDropId = newDropRef.id;
+                }
+
+                closeDropModal();
+            } catch (err) {
+                console.error("Error saving drop:", err);
+                alert("Error saving drop: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = dropId ? "Update Drop" : "Create Drop";
+            }
+        };
 
         const defaultStarterFlavors = [
             {
@@ -1093,28 +1272,6 @@
                         description: fl.description
                     });
                 }
-            }
-        };
-
-                    if (includeStarters) {
-                        for (const fl of defaultStarterFlavors) {
-                            await db.collection("drops").doc(newDropRef.id).collection("flavors").add({
-                                ...fl,
-                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                        }
-                    }
-
-                    currentDropId = newDropRef.id;
-                }
-
-                closeDropModal();
-            } catch (err) {
-                console.error("Error saving drop:", err);
-                alert("Error saving drop: " + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = dropId ? "Update Drop" : "Create Drop";
             }
         };
 
@@ -1522,8 +1679,12 @@
 
         window.filterOrders = function() {
             const term = (document.getElementById("orderSearch").value || "").toLowerCase().trim();
+            const statusFilter = (document.getElementById("orderStatusFilter") ? document.getElementById("orderStatusFilter").value : "all");
             const scoped = getScopedOrders();
             const filtered = scoped.filter(o => {
+                if (statusFilter === "unclaimed" && o.pickupStatus === "picked_up") return false;
+                if (statusFilter === "picked_up" && o.pickupStatus !== "picked_up") return false;
+
                 if (!term) return true;
                 const nameMatch = o.customerName && o.customerName.toLowerCase().includes(term);
                 const emailMatch = o.customerEmail && o.customerEmail.toLowerCase().includes(term);
@@ -1531,6 +1692,244 @@
                 return nameMatch || emailMatch || phoneMatch;
             });
             renderOrdersTable(filtered);
+        };
+
+        window.printBakePrepSheet = function() {
+            document.body.className = "print-mode-prep";
+            window.print();
+            document.body.className = "";
+        };
+
+        window.printPackingSlips = function() {
+            const scopedOrders = getScopedOrders();
+            if (scopedOrders.length === 0) {
+                return alert("No orders found to print for this selection.");
+            }
+
+            const currentDrop = allDrops.find(d => d.id === currentDropId);
+            const defaultDropTitle = currentDrop ? (currentDrop.title || "Beach'n Bagels Drop") : "Beach'n Bagels Pop-Up";
+            const pickupWindow = currentDrop ? (currentDrop.pickupWindow || "Saturday Morning") : "Saturday Morning";
+
+            const printArea = document.getElementById("packingSlipsPrintArea");
+            printArea.innerHTML = scopedOrders.map((order, idx) => {
+                const itemsList = (order.items || []).map(item => {
+                    const bundleLabel = item.bundleLabel || (item.bundle === "half" ? "Half Dozen" : (item.bundle === "dozen" ? "Full Dozen" : ""));
+                    return `
+                        <div style="margin: 4px 0; font-size: 1rem; font-weight: 600;">
+                            <span style="font-size: 1.15rem; font-family: monospace; margin-right: 6px;">[ &nbsp; ]</span>
+                            <strong>${item.quantity || 1}x</strong> ${item.flavorName || item.name} ${bundleLabel ? `<em>(${bundleLabel})</em>` : ''}
+                        </div>
+                    `;
+                }).join("");
+
+                const orderDrop = allDrops.find(d => d.id === order.dropId);
+                const title = (orderDrop && orderDrop.title) || defaultDropTitle;
+
+                return `
+                    <div class="packing-slip">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1E414A; padding-bottom: 8px; margin-bottom: 10px;">
+                                <div>
+                                    <div style="font-family: 'Fredoka', sans-serif; font-size: 1.35rem; font-weight: 700; color: #1E414A;">${order.customerName || "Customer"}</div>
+                                    <div style="font-size: 0.95rem; font-weight: 600; color: #2A5A66; margin-top: 2px;">📞 ${order.customerPhone || "No Phone"}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; background: #e5e7eb; padding: 2px 8px; border-radius: 4px; display: inline-block;">Box #${idx + 1}</div>
+                                    <div style="font-size: 0.75rem; color: #555; margin-top: 3px;">${order.pickupStatus === 'picked_up' ? '✅ CLAIMED' : '⏳ UNCLAIMED'}</div>
+                                </div>
+                            </div>
+
+                            <div style="font-size: 0.85rem; color: #555; margin-bottom: 10px;">
+                                <strong>📍 ${title}</strong><br>
+                                ⏰ ${pickupWindow}
+                            </div>
+
+                            <div style="background: #FDF6E9; border: 1px solid #d4c5b9; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                                <div style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #2A5A66; margin-bottom: 6px;">Items to Pack:</div>
+                                ${itemsList || "<div>No items listed</div>"}
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px dashed #999; padding-top: 8px; font-size: 0.75rem; color: #666; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Paid: <strong>$${(order.amountTotal || 0).toFixed(2)}</strong> via Stripe</span>
+                            <span>Packed By: _________</span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+            document.body.className = "print-mode-slips";
+            window.print();
+            document.body.className = "";
+        };
+
+        window.openBroadcastModal = function() {
+            const drop = allDrops.find(d => d.id === currentDropId);
+            if (!drop) return alert("Please select or create a drop first.");
+
+            const dropTitle = drop.title || "Pop-Up Drop";
+            const pickupLocation = drop.pickupLocation || "Silver Strand Beach, Oxnard";
+            const pickupWindow = drop.pickupWindow || "Saturday Morning";
+
+            document.getElementById("broadcastDropTitle").textContent = dropTitle;
+            document.getElementById("broadcastSubscriberCount").textContent = waitlistEmails.length;
+            document.getElementById("testEmailTarget").textContent = currentUserEmail;
+
+            document.getElementById("broadcastSubject").value = `🥯 Fresh Bagels Alert: Preorders are LIVE for ${dropTitle}!`;
+            document.getElementById("broadcastHeadline").value = `Preorders Are Live for ${dropTitle}!`;
+            document.getElementById("broadcastMessage").value = `We’re firing up the kettle and hand-rolling fresh bagels for our upcoming beach drop at ${pickupLocation}.\n\nPickup Window: ${pickupWindow}.\n\nQuantities are strictly limited—preorder your dozen now before we sell out!`;
+
+            updateBroadcastPreview();
+            document.getElementById("broadcastModal").style.display = "flex";
+        };
+
+        window.closeBroadcastModal = function() {
+            document.getElementById("broadcastModal").style.display = "none";
+        };
+
+        window.updateBroadcastPreview = function() {
+            const headline = document.getElementById("broadcastHeadline").value;
+            const message = document.getElementById("broadcastMessage").value;
+            const drop = allDrops.find(d => d.id === currentDropId);
+            const pickupLocation = drop ? (drop.pickupLocation || "Silver Strand Beach, Oxnard") : "Silver Strand Beach, Oxnard";
+            const pickupWindow = drop ? (drop.pickupWindow || "Saturday Morning") : "Saturday Morning";
+
+            const previewBox = document.getElementById("broadcastPreviewBox");
+            if (previewBox) {
+                previewBox.innerHTML = `
+                    <div style="text-align: center; margin-bottom: 14px;">
+                        <img src="favicon.png" alt="Ollie the Otter" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #2A5A66; object-fit: cover;">
+                        <h3 style="color: #2A5A66; margin: 8px 0 2px 0; font-size: 1.3rem;">${headline || 'Preorders Are Live!'}</h3>
+                        <p style="font-size: 0.85rem; margin: 0; opacity: 0.8;">Beach'n Bagels Pop-Up Alert</p>
+                    </div>
+                    <div style="background: #ffffff; border: 1.5px solid #2A5A66; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.9rem; line-height: 1.5; white-space: pre-line;">
+                        ${message || ''}
+                        <div style="background: #EBF2F4; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-top: 10px; border-left: 3px solid #2A5A66;">
+                            <div><strong>📍 Location:</strong> ${pickupLocation}</div>
+                            <div><strong>⏰ Pickup Window:</strong> ${pickupWindow}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="background: #2A5A66; color: #FDBB4C; padding: 10px 20px; border-radius: 50px; font-weight: bold; font-size: 0.95rem; display: inline-block;">
+                            Preorder Your Bagels Now →
+                        </span>
+                    </div>
+                `;
+            }
+        };
+
+        window.handleSendTestBroadcast = async function() {
+            const btn = document.getElementById("btnTestBroadcast");
+            const subject = document.getElementById("broadcastSubject").value.trim();
+            const headline = document.getElementById("broadcastHeadline").value.trim();
+            const message = document.getElementById("broadcastMessage").value.trim();
+
+            btn.disabled = true;
+            btn.textContent = "Sending Test Preview...";
+
+            try {
+                const res = await fetch("/api/broadcastDropToWaitlist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        dropId: currentDropId,
+                        subject,
+                        headline,
+                        message,
+                        testOnly: true,
+                        testEmail: currentUserEmail
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to send test email");
+
+                alert(`✅ Test preview email sent to ${currentUserEmail}!\n\nPlease check your inbox (and spam/promotions) to verify how it looks.`);
+            } catch (err) {
+                console.error("Test broadcast failed:", err);
+                alert("Error sending test preview: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `🧪 Send Test to Me (<span id="testEmailTarget">${currentUserEmail}</span>)`;
+            }
+        };
+
+        window.handleSendBroadcast = async function(e) {
+            e.preventDefault();
+            const count = waitlistEmails.length;
+            if (count === 0) return alert("You have 0 subscribers on your waitlist.");
+
+            const drop = allDrops.find(d => d.id === currentDropId);
+            const dropTitle = drop ? drop.title : "this drop";
+
+            const confirmed = confirm(`⚠️ ARE YOU READY TO BLAST?\n\nThis will send the live announcement email to ALL ${count} waitlist subscribers for "${dropTitle}".\n\nClick "OK" to send now.`);
+            if (!confirmed) return;
+
+            const btn = document.getElementById("btnLiveBroadcast");
+            const subject = document.getElementById("broadcastSubject").value.trim();
+            const headline = document.getElementById("broadcastHeadline").value.trim();
+            const message = document.getElementById("broadcastMessage").value.trim();
+
+            btn.disabled = true;
+            btn.textContent = `Blasting to ${count} Subscribers...`;
+
+            try {
+                const res = await fetch("/api/broadcastDropToWaitlist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        dropId: currentDropId,
+                        subject,
+                        headline,
+                        message,
+                        testOnly: false
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to send broadcast");
+
+                alert(`🎉 Success! Broadcast sent to ${data.count || count} subscribers.`);
+                closeBroadcastModal();
+            } catch (err) {
+                console.error("Broadcast failed:", err);
+                alert("Error sending broadcast: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "🚀 Send to All Subscribers";
+            }
+        };
+
+        window.sendTestOrderReceiptEmail = async function() {
+            const drop = allDrops.find(d => d.id === currentDropId);
+            if (!drop) return alert("Please select a drop first.");
+
+            const targetEmail = prompt("Send test customer order receipt to which email?", currentUserEmail);
+            if (!targetEmail || !targetEmail.includes("@")) return;
+
+            const btn = event.target;
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "Sending Test...";
+
+            try {
+                const res = await fetch("/api/sendTestOrderReceipt", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        dropId: currentDropId,
+                        recipientEmail: targetEmail.trim()
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to send test receipt");
+
+                alert(`✅ Test customer receipt sent to ${targetEmail}!\n\nCheck your inbox to review your pickup instructions and order summary styling.`);
+            } catch (err) {
+                console.error("Test customer receipt failed:", err);
+                alert("Error sending test receipt: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
         };
 
         // Listen to Waitlist

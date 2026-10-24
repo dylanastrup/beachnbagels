@@ -52,6 +52,20 @@
           "functionId": "submitWaitlist",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/broadcastDropToWaitlist",
+        "function": {
+          "functionId": "broadcastDropToWaitlist",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/sendTestOrderReceipt",
+        "function": {
+          "functionId": "sendTestOrderReceipt",
+          "region": "us-central1"
+        }
       }
     ]
   },

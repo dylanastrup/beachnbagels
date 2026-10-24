@@ -3,36 +3,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper: Check if the authenticated user is an authorized admin
+    function isAdmin() {
+      return request.auth != null &&
+             request.auth.token.email in [
+               'dylanastrup@gmail.com',
+               'dylan@beachnbagels.com',
+               'dylanastrup@beachnbagels.com'
+             ];
+    }
 
-    // 1. Email Waitlist
-    // Public visitors can add their email. Admin dashboard can read and delete entries.
+    // 1. Waitlist Collection
+    // Public visitors can add their email to the drop alert waitlist.
+    // Reading and deleting waitlist entries requires admin authorization.
+    // Client updates are disallowed.
     match /waitlist/{entryId} {
-      allow create: if request.resource.data.email is string && 
+      allow create: if request.resource.data.email is string &&
                        request.resource.data.email.size() > 3 &&
-                       request.resource.data.email.size() <= 254;
-      allow read, delete: if true;
+                       request.resource.data.email.size() <= 254 &&
+                       request.resource.data.email.matches('.*@.*\\..*');
+      allow read, delete: if isAdmin();
       allow update: if false;
     }
 
     // 2. Drops & Flavors
-    // Public visitors can view drops and flavor inventory. Baker can manage drops and stock.
+    // Public customers can view scheduled drops and flavor inventory.
+    // Drop and flavor creation, updates, and deletion are restricted to admins.
     match /drops/{dropId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
 
       match /flavors/{flavorId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow create, update, delete: if isAdmin();
       }
     }
 
-    // 3. Preorders
-    // Orders are strictly created by Cloud Functions (create disallowed for clients).
-    // Admin dashboard can read orders and toggle pickup status.
+    // 3. Orders Collection
+    // Customer orders are created strictly via backend Cloud Functions (Stripe webhook with Admin SDK).
+    // Client creation is prohibited to enforce payment verification and server-side inventory locking.
+    // Reading, updating (e.g. pickup status), and deleting orders is restricted to admins to protect PII.
     match /orders/{orderId} {
-      allow read, update, delete: if true;
       allow create: if false;
+      allow read, update, delete: if isAdmin();
     }
 
-    // 4. Default Deny
+    // 4. Default Deny Catch-All
+    // Lock down any other collections (such as pendingOrders) from direct client access.
     match /{document=**} {
       allow read, write: if false;
     }

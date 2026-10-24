@@ -481,6 +481,87 @@
             text-decoration: underline;
         }
 
+        /* Pop-Up FAQ Accordion */
+        .faq-section {
+            margin: 45px 0 35px 0;
+            text-align: left;
+        }
+
+        .faq-title {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.6rem;
+            color: var(--teal);
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .faq-subtitle {
+            text-align: center;
+            font-size: 0.95rem;
+            opacity: 0.85;
+            margin-bottom: 22px;
+        }
+
+        .faq-accordion {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .faq-item[open] {
+            box-shadow: 0 4px 14px rgba(42, 90, 102, 0.12);
+        }
+
+        .faq-question {
+            padding: 16px 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.05rem;
+            color: var(--teal);
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            font-weight: 600;
+        }
+
+        .faq-question::-webkit-details-marker {
+            display: none;
+        }
+
+        .faq-question::after {
+            content: '＋';
+            font-size: 1.25rem;
+            color: var(--gold);
+            font-weight: bold;
+            transition: transform 0.2s ease;
+        }
+
+        .faq-item[open] .faq-question::after {
+            content: '−';
+            color: var(--teal);
+        }
+
+        .faq-answer {
+            padding: 0 20px 18px 20px;
+            font-size: 0.95rem;
+            line-height: 1.55;
+            color: var(--teal-dark);
+            border-top: 1px dashed rgba(42, 90, 102, 0.15);
+            padding-top: 12px;
+        }
+
         @media (min-width: 600px) {
             .email-form {
                 flex-direction: row;
@@ -560,6 +641,56 @@
             <button id="btnOpenCheckout" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem;">
                 Review & Preorder →
             </button>
+        </div>
+
+        <!-- Pop-Up FAQ & Pickup Details Section -->
+        <div class="faq-section" id="faqSection">
+            <h2 class="faq-title">Pop-Up FAQ & Pickup Guide 🥯</h2>
+            <p class="faq-subtitle">Everything you need to know about our beachside drops.</p>
+
+            <div class="faq-accordion">
+                <details class="faq-item">
+                    <summary class="faq-question">📍 Where and how do I pick up my bagels?</summary>
+                    <div class="faq-answer">
+                        Look for <strong>Ollie the Otter</strong> and our signature teal Beach'n Bagels tent set up on the sand near the jetty at Silver Strand Beach in Oxnard! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you.
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">🚗 Where should I park?</summary>
+                    <div class="faq-answer">
+                        There is free street parking along Ocean Drive and the surrounding residential streets, as well as public beach parking lots at the end of S. Victoria Ave. We recommend arriving anytime within the announced pickup window so you have plenty of time to grab your bagels and enjoy the ocean breeze!
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">⏰ What if I'm running a few minutes late?</summary>
+                    <div class="faq-answer">
+                        Don't stress! All preorders are paid and reserved specifically for you. We hold all preorders until the end of the pickup window. If you're delayed or have an unexpected change of plans, shoot us a quick note at <a href="mailto:hello@beachnbagels.com" style="color: var(--teal); font-weight: bold;">hello@beachnbagels.com</a> and we will work with you.
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">🔪 Are the bagels sliced or toasted?</summary>
+                    <div class="faq-answer">
+                        Our bagels are handed out freshly baked and <strong>unsliced</strong>! Keeping them intact preserves the delicate blistered crust and keeps the soft, chewy interior moist. For the best experience, use a serrated bread knife to slice them right before eating.
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">🧊 How should I store and freeze my bagels?</summary>
+                    <div class="faq-answer">
+                        Our bagels are made with traditional methods and zero artificial preservatives. They are at their absolute peak on Saturday morning! For any bagels you plan to enjoy later in the week: slice them in half, place them into a sealed freezer bag, and freeze them immediately. Pop them straight from the freezer into your toaster for a bakery-fresh crunch.
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">🧈 Do you offer cream cheese or spreads?</summary>
+                    <div class="faq-answer">
+                        For our pop-ups, our baker focuses 100% on hand-rolling, kettle boiling, and baking the freshest craft bagels possible! We currently sell exclusively whole dozens and half dozens. We encourage you to bring your favorite schmears, butter, or beach picnic spreads.
+                    </div>
+                </details>
+            </div>
         </div>
 
         <!-- Email Waitlist Form Section -->
