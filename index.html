@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beach'n Bagels | Hand-Rolled Pop-up Bagels | Silver Strand</title>
+    <title>Beach'n Bagels | Hand-Rolled Craft Pop-up Bagels</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="favicon.png">
 
     <!-- Open Graph / Social Sharing Previews (iMessage, Instagram, Facebook) -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://beachnbagels.com/">
-    <meta property="og:title" content="Beach'n Bagels | Silver Strand, Oxnard">
-    <meta property="og:description" content="Small-batch, hand-rolled pop-up bagels on the coast of Oxnard, CA. Preorder your weekend batch before they sell out!">
+    <meta property="og:title" content="Beach'n Bagels | Hand-Rolled Craft Pop-up Bagels">
+    <meta property="og:description" content="Small-batch, hand-rolled pop-up bagels on the coast. Preorder your weekend batch before they sell out!">
     <meta property="og:image" content="https://beachnbagels.com/favicon.png">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Beach'n Bagels | Silver Strand, Oxnard">
-    <meta name="twitter:description" content="Small-batch, hand-rolled pop-up bagels on the coast of Oxnard, CA. Preorder your weekend batch before they sell out!">
+    <meta name="twitter:title" content="Beach'n Bagels | Hand-Rolled Craft Pop-up Bagels">
+    <meta name="twitter:description" content="Small-batch, hand-rolled pop-up bagels on the coast. Preorder your weekend batch before they sell out!">
     <meta name="twitter:image" content="https://beachnbagels.com/favicon.png">
 
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -593,7 +593,7 @@
             </div>
             <div class="drop-info-row">
                 <span>📍</span>
-                <span id="bannerLocation">Silver Strand Beach, Oxnard</span>
+                <span id="bannerLocation">Pop-Up Location</span>
             </div>
             <div class="drop-info-row">
                 <span>⏰</span>
@@ -607,9 +607,9 @@
 
         <!-- Hero Headline & Intro (Shown only between drops or when preorders are closed) -->
         <div id="heroIntroSection">
-            <h1 id="heroTitle">Fresh Bagels are coming to Silver Strand.</h1>
+            <h1 id="heroTitle">Fresh Bagels are coming to the beach.</h1>
             <p id="heroSubtitle">
-                We’re bringing hand-rolled, boiled-and-baked bagels to Oxnard. 
+                We’re bringing hand-rolled, boiled-and-baked bagels to coastal California. 
                 <br>
                 Join the waitlist to get notified about our next <strong>pop-up</strong> and menu.
             </p>
@@ -652,14 +652,14 @@
                 <details class="faq-item">
                     <summary class="faq-question">📍 Where and how do I pick up my bagels?</summary>
                     <div class="faq-answer">
-                        Look for <strong>Ollie the Otter</strong> and our signature teal Beach'n Bagels tent set up on the sand near the jetty at Silver Strand Beach in Oxnard! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you.
+                        Look for <strong>Ollie the Otter</strong> and our signature teal Beach'n Bagels tent set up at the announced pop-up location! When you walk up to our table, simply give the full name on your preorder. We'll have your custom-packed boxes ready to hand you.
                     </div>
                 </details>
 
                 <details class="faq-item">
                     <summary class="faq-question">🚗 Where should I park?</summary>
                     <div class="faq-answer">
-                        There is free street parking along Ocean Drive and the surrounding residential streets, as well as public beach parking lots at the end of S. Victoria Ave. We recommend arriving anytime within the announced pickup window so you have plenty of time to grab your bagels and enjoy the ocean breeze!
+                        Parking is typically available along nearby public streets and local beach lots at our pop-up spots. Exact parking tips and coordinates are included in your order receipt and drop announcement. We recommend arriving anytime within the pickup window to grab your bagels and enjoy the ocean breeze!
                     </div>
                 </details>
 
@@ -714,7 +714,7 @@
 
         <!-- Footer -->
         <footer>
-            <p>&copy; <span id="currentYear"></span> Beach'n Bagels | Oxnard, CA</p>
+            <p>&copy; <span id="currentYear"></span> Beach'n Bagels | California</p>
             <p>Follow us (and Ollie the Otter) on <a href="https://www.instagram.com/beachnbagels805/" target="_blank">Instagram</a></p>
         </footer>
     </div>
@@ -733,7 +733,7 @@
                     📍 Pickup Details
                 </div>
                 <div id="successDropDetails" style="font-size: 0.95rem; line-height: 1.6; color: var(--teal-dark);">
-                    <strong>Location:</strong> Silver Strand Beach, Oxnard<br>
+                    <strong>Location:</strong> See drop pickup details<br>
                     <strong>Pickup Window:</strong> Saturday Morning<br>
                     <strong>Receipt:</strong> Check your email for your Stripe confirmation
                 </div>
@@ -1106,7 +1106,7 @@
 
             dropBanner.style.display = "block";
             bannerDropTitle.textContent = currentDrop.title || "Pop-Up Drop";
-            bannerLocation.textContent = currentDrop.pickupLocation || "Silver Strand Beach, Oxnard";
+            bannerLocation.textContent = currentDrop.pickupLocation || "Pop-Up Location";
             bannerPickupWindow.textContent = currentDrop.pickupWindow || "Saturday 8:00 AM - 11:00 AM";
 
             const bannerDescription = document.getElementById("bannerDescription");
@@ -1135,7 +1135,7 @@
                 if (heroIntroSection) heroIntroSection.style.display = "block";
                 bannerBadge.textContent = "PREORDERS CLOSED";
                 bannerBadge.className = "badge-sold-out";
-                bannerCountdown.innerHTML = "⏳ Preorders are closed while we bake. See you at Silver Strand!";
+                bannerCountdown.innerHTML = "⏳ Preorders are closed while we bake. See you at the drop!";
                 preorderSection.style.display = "none";
                 cartBar.style.display = "none";
                 clearCartStorage();
@@ -1555,7 +1555,7 @@
                 if (currentDrop && successDropDetails) {
                     successDropDetails.innerHTML = `
                         <strong>Drop:</strong> ${currentDrop.title || "Pop-up Drop"}<br>
-                        <strong>Location:</strong> ${currentDrop.pickupLocation || currentDrop.location || "Silver Strand, Oxnard"}<br>
+                        <strong>Location:</strong> ${currentDrop.pickupLocation || currentDrop.location || "Pop-Up Location"}<br>
                         <strong>Pickup Window:</strong> ${currentDrop.pickupWindow || "Saturday Morning"}<br>
                         <strong>Receipt:</strong> Check your email for your Stripe confirmation
                     `;

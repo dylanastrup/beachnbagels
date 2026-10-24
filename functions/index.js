@@ -130,7 +130,7 @@ async function sendCustomerConfirmationEmail({ session, customerName, customerEm
   const totalDollars = ((session.amount_total || 0) / 100).toFixed(2);
   const dropTitle = (drop && drop.title) || "Beach'n Bagels Pop-Up Drop";
   const pickupWindow = (drop && drop.pickupWindow) || "Saturday Morning";
-  const pickupLocation = (drop && drop.pickupLocation) || "Silver Strand Beach, Oxnard, CA";
+  const pickupLocation = (drop && drop.pickupLocation) || "Announced Pop-Up Location";
   const customNotes = (drop && (drop.confirmationNotes || drop.description)) || "";
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pickupLocation)}`;
 
@@ -192,7 +192,7 @@ async function sendCustomerConfirmationEmail({ session, customerName, customerEm
 
       <div style="text-align: center; font-size: 0.85rem; opacity: 0.8; line-height: 1.5;">
         Questions or running late? Reply directly to this email or reach us at <a href="mailto:hello@beachnbagels.com" style="color: #2A5A66; font-weight: bold;">hello@beachnbagels.com</a>.<br>
-        See you at Silver Strand! 🌊🥯
+        See you at the beach! 🌊🥯
       </div>
     </div>
   `;
@@ -853,7 +853,7 @@ exports.broadcastDropToWaitlist = onRequest({ cors: true }, async (req, res) => 
 
   const dropTitle = (drop && drop.title) || "New Pop-Up Drop";
   const pickupWindow = (drop && drop.pickupWindow) || "Saturday Morning";
-  const pickupLocation = (drop && drop.pickupLocation) || "Silver Strand Beach, Oxnard";
+  const pickupLocation = (drop && drop.pickupLocation) || "Announced Pop-Up Location";
 
   const emailSubject = subject || `🥯 Fresh Bagels Alert: Preorders are LIVE for ${dropTitle}!`;
   const emailHeadline = headline || `Preorders Are Live for ${dropTitle}!`;
@@ -886,7 +886,7 @@ exports.broadcastDropToWaitlist = onRequest({ cors: true }, async (req, res) => 
 
       <div style="text-align: center; font-size: 0.8rem; opacity: 0.75; line-height: 1.4; border-top: 1px dashed rgba(42,90,102,0.2); padding-top: 14px;">
         You received this because you signed up for the Beach'n Bagels Club at beachnbagels.com.<br>
-        Oxnard, CA • Hand-rolled, boiled and baked fresh.
+        California Coast • Hand-rolled, boiled and baked fresh.
       </div>
     </div>
   `;

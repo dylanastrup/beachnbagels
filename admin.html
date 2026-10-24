@@ -377,7 +377,7 @@
                 <img src="favicon.png" alt="Beach'n Bagels Logo" class="header-logo">
                 <div>
                     <h1>Baker Dashboard</h1>
-                    <p style="font-size: 0.85rem; opacity: 0.8;">Oxnard, CA • Drop & Inventory Control</p>
+                    <p style="font-size: 0.85rem; opacity: 0.8;">Pop-Up Drop & Inventory Control</p>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -626,7 +626,7 @@
                 
                 <div style="margin-bottom: 14px;">
                     <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Drop Title</label>
-                    <input type="text" id="modalDropTitle" placeholder="e.g. Pop-Up Drop #2: Silver Strand" required style="width: 100%;">
+                    <input type="text" id="modalDropTitle" placeholder="e.g. Pop-Up Drop #2: Beachside" required style="width: 100%;">
                 </div>
 
                 <div style="margin-bottom: 14px;">
@@ -636,7 +636,7 @@
 
                 <div style="margin-bottom: 14px;">
                     <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Pickup Location</label>
-                    <input type="text" id="modalDropLocation" placeholder="e.g. Silver Strand Beach (Near Jetty), Oxnard, CA" required style="width: 100%;">
+                    <input type="text" id="modalDropLocation" placeholder="e.g. Beach Park (Near Lifeguard Tower #3), CA" required style="width: 100%;">
                 </div>
 
                 <div style="margin-bottom: 14px;">
@@ -1021,7 +1021,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:15px; margin-bottom:15px;">
                     <div>
                         <h3 style="font-family:'Fredoka',sans-serif; font-size:1.4rem;">${drop.title || "Pop-Up Drop"}</h3>
-                        <p style="margin:4px 0;">📍 <strong>Pickup:</strong> ${drop.pickupLocation || "Silver Strand Beach, Oxnard"}</p>
+                        <p style="margin:4px 0;">📍 <strong>Pickup:</strong> ${drop.pickupLocation || "Announced Location"}</p>
                         <p style="margin:4px 0;">⏰ <strong>Window:</strong> ${drop.pickupWindow || "Saturday, 8:00 AM - 11:00 AM"}</p>
                         <p style="margin:4px 0;">⏳ <strong>Preorder Cutoff:</strong> ${cutoff}</p>
                         ${drop.description ? `<p style="margin:8px 0 4px 0; font-size:0.9rem; background:var(--teal-light); padding:8px 12px; border-radius:8px; line-height:1.4; white-space:pre-line;">📝 <strong>Story / Pickup Notes:</strong> ${drop.description}</p>` : ''}
@@ -1086,9 +1086,9 @@
             document.getElementById("modalDropId").value = "";
             
             const nextNumber = allDrops.length + 1;
-            document.getElementById("modalDropTitle").value = `Pop-Up Drop #${nextNumber}: Silver Strand`;
+            document.getElementById("modalDropTitle").value = `Pop-Up Drop #${nextNumber}`;
             document.getElementById("modalDropWindow").value = "Saturday 8:00 AM - 11:00 AM";
-            document.getElementById("modalDropLocation").value = "Silver Strand Beach (Near Jetty), Oxnard, CA";
+            document.getElementById("modalDropLocation").value = "";
             document.getElementById("modalDropDescription").value = "";
             document.getElementById("modalDropConfirmationNotes").value = "";
             
@@ -1768,7 +1768,7 @@
             if (!drop) return alert("Please select or create a drop first.");
 
             const dropTitle = drop.title || "Pop-Up Drop";
-            const pickupLocation = drop.pickupLocation || "Silver Strand Beach, Oxnard";
+            const pickupLocation = drop.pickupLocation || "Announced Pop-Up Location";
             const pickupWindow = drop.pickupWindow || "Saturday Morning";
 
             document.getElementById("broadcastDropTitle").textContent = dropTitle;
@@ -1791,7 +1791,7 @@
             const headline = document.getElementById("broadcastHeadline").value;
             const message = document.getElementById("broadcastMessage").value;
             const drop = allDrops.find(d => d.id === currentDropId);
-            const pickupLocation = drop ? (drop.pickupLocation || "Silver Strand Beach, Oxnard") : "Silver Strand Beach, Oxnard";
+            const pickupLocation = drop ? (drop.pickupLocation || "Announced Pop-Up Location") : "Announced Pop-Up Location";
             const pickupWindow = drop ? (drop.pickupWindow || "Saturday Morning") : "Saturday Morning";
 
             const previewBox = document.getElementById("broadcastPreviewBox");
