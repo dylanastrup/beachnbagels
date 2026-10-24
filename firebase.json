@@ -45,6 +45,13 @@
           "functionId": "releaseCheckoutHold",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/submitWaitlist",
+        "function": {
+          "functionId": "submitWaitlist",
+          "region": "us-central1"
+        }
       }
     ]
   },

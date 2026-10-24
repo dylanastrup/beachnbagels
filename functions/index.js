@@ -3,6 +3,7 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const Stripe = require("stripe");
+const { Resend } = require("resend");
 
 // Explicitly set region for Cloud Functions v2
 setGlobalOptions({ region: "us-central1" });
@@ -10,6 +11,7 @@ setGlobalOptions({ region: "us-central1" });
 // Define Cloud Secrets stored securely in Google Cloud Secret Manager
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const resendApiKey = defineSecret("RESEND_API_KEY");
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -18,6 +20,102 @@ const db = admin.firestore();
 function getStripeClient() {
   const key = stripeSecretKey.value() || process.env.STRIPE_SECRET_KEY;
   return new Stripe(key);
+}
+
+function getResendClient() {
+  const key = resendApiKey.value() || process.env.RESEND_API_KEY;
+  return new Resend(key);
+}
+
+async function sendAdminEmail({ subject, html }) {
+  const resend = getResendClient();
+  const primaryFrom = "Beach'n Bagels <orders@beachnbagels.com>";
+  const fallbackFrom = "Beach'n Bagels <onboarding@resend.dev>";
+  const to = [process.env.ADMIN_ALERT_EMAIL || "dylanastrup@gmail.com"];
+
+  try {
+    const res = await resend.emails.send({
+      from: primaryFrom,
+      to,
+      subject,
+      html
+    });
+    if (res && res.error) {
+      if (res.error.message && res.error.message.includes("not verified")) {
+        console.log("Domain beachnbagels.com not verified yet in Resend, using onboarding@resend.dev fallback");
+        return await resend.emails.send({
+          from: fallbackFrom,
+          to,
+          subject,
+          html
+        });
+      }
+      console.warn("Resend email warning:", res.error);
+    }
+    return res;
+  } catch (err) {
+    if (err.message && err.message.includes("not verified")) {
+      return await resend.emails.send({
+        from: fallbackFrom,
+        to,
+        subject,
+        html
+      });
+    }
+    console.error("Failed to send admin email alert:", err);
+  }
+}
+
+async function sendNewOrderAlert({ session, customerName, customerEmail, customerPhone, items, dropId }) {
+  const totalDollars = ((session.amount_total || 0) / 100).toFixed(2);
+  const itemsHtml = (items || []).map(item => `
+    <tr style="border-bottom: 1px solid #e5e5e5;">
+      <td style="padding: 10px 0; color: #1E414A;">
+        <strong>${item.quantity}x</strong> ${item.flavorName || "Bagels"}
+        <div style="font-size: 0.85rem; color: #737373;">${item.bundleLabel || item.bundle || ""}</div>
+      </td>
+      <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #2A5A66;">
+        $${(item.subtotal || 0).toFixed(2)}
+      </td>
+    </tr>
+  `).join("");
+
+  await sendAdminEmail({
+    subject: `🥯 New Preorder: ${customerName} ($${totalDollars})`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 2px solid #2A5A66; border-radius: 14px; background: #FDF6E9; color: #1E414A;">
+        <div style="text-align: center; margin-bottom: 16px;">
+          <span style="font-size: 2.5rem;">🥯</span>
+          <h2 style="color: #2A5A66; margin: 8px 0 4px 0; font-size: 1.6rem;">New Bagel Preorder Received!</h2>
+          <p style="font-size: 0.95rem; margin: 0; opacity: 0.85;">Payment confirmed via Stripe</p>
+        </div>
+        
+        <div style="background: #ffffff; padding: 16px; border-radius: 10px; border: 1px solid #e5e5e5; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 10px 0; color: #2A5A66; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px;">Customer Details</h4>
+          <p style="margin: 4px 0; font-size: 0.95rem;"><strong>Name:</strong> ${customerName}</p>
+          <p style="margin: 4px 0; font-size: 0.95rem;"><strong>Email:</strong> <a href="mailto:${customerEmail}" style="color: #2A5A66;">${customerEmail}</a></p>
+          <p style="margin: 4px 0; font-size: 0.95rem;"><strong>Phone:</strong> <a href="tel:${customerPhone}" style="color: #2A5A66;">${customerPhone || "Not provided"}</a></p>
+        </div>
+
+        <div style="background: #ffffff; padding: 16px; border-radius: 10px; border: 1px solid #e5e5e5; margin-bottom: 20px;">
+          <h4 style="margin: 0 0 10px 0; color: #2A5A66; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px;">Order Summary</h4>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+            ${itemsHtml}
+            <tr>
+              <td style="padding: 14px 0 0 0; font-weight: bold; font-size: 1.15rem; color: #2A5A66;">Total Paid:</td>
+              <td style="padding: 14px 0 0 0; text-align: right; font-weight: bold; font-size: 1.15rem; color: #2A5A66;">$${totalDollars}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="https://beachnbagels.com/admin.html" style="background: #2A5A66; color: #FDBB4C; padding: 12px 24px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 0.95rem; display: inline-block;">
+            Open Baker Prep Sheet & Dashboard →
+          </a>
+        </div>
+      </div>
+    `
+  });
 }
 
 /**
@@ -432,6 +530,20 @@ exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecr
       });
 
       console.log(`Order ${session.id} successfully recorded.`);
+
+      // Send instant email notification to baker
+      try {
+        await sendNewOrderAlert({
+          session,
+          customerName,
+          customerEmail,
+          customerPhone,
+          items,
+          dropId
+        });
+      } catch (emailErr) {
+        console.error("Failed to send order alert email:", emailErr);
+      }
     } catch (err) {
       console.error(`Transaction failed for session ${session.id}:`, err);
       return res.status(500).send("Transaction error");
@@ -544,5 +656,68 @@ exports.releaseCheckoutHold = onRequest({ cors: true, secrets: [stripeSecretKey]
   } catch (error) {
     console.error(`Error releasing checkout hold for ${sessionId}:`, error);
     return res.status(500).json({ error: error.message || "Failed to release hold" });
+  }
+});
+
+/**
+ * Endpoint to add an email to the waitlist and instantly alert the baker.
+ */
+exports.submitWaitlist = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  const { email, source } = req.body || {};
+  const cleanedEmail = (email || "").trim().toLowerCase();
+
+  if (!cleanedEmail || !cleanedEmail.includes("@")) {
+    return res.status(400).json({ error: "Please provide a valid email address." });
+  }
+
+  try {
+    const docRef = await db.collection("waitlist").add({
+      email: cleanedEmail,
+      source: source || "landing_page",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Send instant email notification to baker
+    try {
+      await sendAdminEmail({
+        subject: `🎉 New Waitlist Signup: ${cleanedEmail}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 2px solid #2A5A66; border-radius: 14px; background: #FDF6E9; color: #1E414A;">
+            <div style="text-align: center; margin-bottom: 16px;">
+              <span style="font-size: 2.5rem;">🎉</span>
+              <h2 style="color: #2A5A66; margin: 8px 0 4px 0;">New Bagel Club Member!</h2>
+              <p style="font-size: 0.95rem; margin: 0; opacity: 0.85;">Someone just subscribed for drop alerts</p>
+            </div>
+            
+            <div style="background: #ffffff; padding: 16px; border-radius: 10px; border: 1px solid #e5e5e5; text-align: center; margin-bottom: 16px;">
+              <div style="font-size: 1.15rem; font-weight: bold; color: #2A5A66;">
+                📧 ${cleanedEmail}
+              </div>
+              <div style="font-size: 0.85rem; color: #737373; margin-top: 6px;">
+                Source: ${source || "landing_page"} • ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })} (Pacific)
+              </div>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="https://beachnbagels.com/admin.html" style="background: #FDBB4C; color: #1E414A; padding: 10px 20px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 0.9rem; display: inline-block;">
+                View Waitlist in Dashboard →
+              </a>
+            </div>
+          </div>
+        `
+      });
+      console.log(`Waitlist alert sent for ${cleanedEmail}`);
+    } catch (emailErr) {
+      console.warn("Failed to send waitlist alert email:", emailErr);
+    }
+
+    return res.status(200).json({ success: true, id: docRef.id });
+  } catch (err) {
+    console.error("Failed to add waitlist subscriber:", err);
+    return res.status(500).json({ error: err.message || "Failed to join waitlist" });
   }
 });

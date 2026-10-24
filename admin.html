@@ -10,6 +10,7 @@
     
     <!-- Firebase Compat SDKs (Works universally on file://, localhost, and production) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <style>
@@ -274,16 +275,31 @@
 </head>
 <body>
 
-    <!-- Simple PIN gate for Baker access -->
+    <!-- Authentication Gate -->
     <div id="authGate" class="card">
         <img src="favicon.png" alt="Beach'n Bagels Logo" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 15px; border: 2px solid var(--teal); object-fit: cover;">
         <h2 style="font-family:'Fredoka',sans-serif; margin-bottom: 8px;">Baker Portal Access</h2>
-        <p style="font-size: 0.95rem; margin-bottom: 20px; opacity: 0.85;">Enter your admin passcode to manage drops, inventory, and view the prep sheet.</p>
+        <p style="font-size: 0.95rem; margin-bottom: 20px; opacity: 0.85;">Sign in with your authorized Google account to manage drops, inventory, and kitchen prep.</p>
         
-        <form id="adminLoginForm" onsubmit="handleUnlock(event)">
-            <input type="password" id="adminPasscode" placeholder="Enter admin passcode (bagels805)" style="text-align: center; font-size: 1.1rem; width: 100%; margin-bottom: 12px;" autofocus autocomplete="current-password">
-            <button type="submit" id="unlockBtn" class="btn btn-gold" style="width: 100%;">Unlock Dashboard</button>
-        </form>
+        <button type="button" id="btnGoogleSignIn" onclick="handleGoogleSignIn()" class="btn btn-gold" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; padding: 12px; margin-bottom: 15px; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 18 18">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
+            </svg>
+            Sign In with Google
+        </button>
+
+        <div id="authErrorMsg" style="display: none; background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; text-align: left;"></div>
+
+        <details style="text-align: left; font-size: 0.85rem; opacity: 0.85; margin-top: 10px; border-top: 1px dashed var(--gray-200); padding-top: 10px;">
+            <summary style="cursor: pointer; font-weight: 700; text-align: center;">Or unlock with admin passcode</summary>
+            <form id="adminLoginForm" onsubmit="handleUnlock(event)" style="margin-top: 12px;">
+                <input type="password" id="adminPasscode" placeholder="Enter admin passcode" style="text-align: center; font-size: 1rem; width: 100%; margin-bottom: 10px;" autocomplete="current-password">
+                <button type="submit" id="unlockBtn" class="btn btn-teal btn-sm" style="width: 100%;">Unlock with Passcode</button>
+            </form>
+        </details>
     </div>
 
     <!-- Main Dashboard -->
@@ -296,10 +312,11 @@
                     <p style="font-size: 0.85rem; opacity: 0.8;">Oxnard, CA • Drop & Inventory Control</p>
                 </div>
             </div>
-            <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span id="adminUserBadge" style="display: none; font-size: 0.8rem; font-weight: 700; color: var(--teal); background: var(--teal-light); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--teal);"></span>
                 <span class="badge-admin">Admin Portal</span>
-                <a href="index.html" class="btn btn-teal btn-sm" style="margin-left: 10px;">View Live Site ↗</a>
-                <button onclick="handleLogout()" class="btn btn-sm" style="margin-left: 5px; background: none; border: 1px solid var(--teal); color: var(--teal);">Logout</button>
+                <a href="index.html" class="btn btn-teal btn-sm">View Live Site ↗</a>
+                <button onclick="handleLogout()" class="btn btn-sm" style="background: none; border: 1px solid var(--teal); color: var(--teal);">Logout</button>
             </div>
         </header>
 
@@ -543,6 +560,12 @@
                     <input type="text" id="modalDropLocation" placeholder="e.g. Silver Strand Beach (Near Jetty), Oxnard, CA" required style="width: 100%;">
                 </div>
 
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Drop Story & Pickup Notes (Optional)</label>
+                    <textarea id="modalDropDescription" rows="3" placeholder="e.g. Look for our teal pop-up tent on the sand near the jetty! This week's batch is cold-fermented for 48 hours." style="width: 100%; border: 2px solid var(--teal); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.95rem; resize: vertical;"></textarea>
+                    <div style="font-size: 0.78rem; opacity: 0.75; margin-top: 3px;">Shown to customers on the live homepage banner to share pickup directions or a baker's story.</div>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                     <div>
                         <label style="display: block; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px;">Preorder Cutoff Date & Time</label>
@@ -577,10 +600,90 @@
 
     <!-- Application Script -->
     <script>
-        // 1. Admin Authentication Logic
+        // 1. Admin Authentication Logic (Google Sign-In + Passcode Fallback)
         const ADMIN_PIN = "bagels805";
+        const ALLOWED_ADMIN_EMAILS = [
+            "dylanastrup@gmail.com",
+            "dylan@beachnbagels.com",
+            "dylanastrup@beachnbagels.com"
+        ];
+
         const authGate = document.getElementById("authGate");
         const mainDashboard = document.getElementById("mainDashboard");
+        const authErrorMsg = document.getElementById("authErrorMsg");
+        const adminUserBadge = document.getElementById("adminUserBadge");
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAEOwp0RdxMkxXdBx6yJlhPhoXq6Vbi3Do",
+            authDomain: "beachnbagels.firebaseapp.com",
+            projectId: "beachnbagels",
+            storageBucket: "beachnbagels.firebasestorage.app",
+            messagingSenderId: "697659238755",
+            appId: "1:697659238755:web:58ebee2e4195cdc8744b56",
+            measurementId: "G-QWJ8540ZXF"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                const userEmail = (user.email || "").toLowerCase();
+                const isWhitelisted = ALLOWED_ADMIN_EMAILS.length === 0 || ALLOWED_ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+
+                if (isWhitelisted) {
+                    if (authErrorMsg) authErrorMsg.style.display = "none";
+                    authGate.style.display = "none";
+                    mainDashboard.style.display = "block";
+                    if (adminUserBadge) {
+                        adminUserBadge.textContent = user.displayName || user.email;
+                        adminUserBadge.title = user.email;
+                        adminUserBadge.style.display = "inline-block";
+                    }
+                    initFirebase();
+                } else {
+                    if (authErrorMsg) {
+                        authErrorMsg.innerHTML = `
+                            <strong>Access Denied:</strong> ${user.email} is not authorized for the Baker Portal.<br>
+                            Please sign in with your authorized Google account.
+                        `;
+                        authErrorMsg.style.display = "block";
+                    }
+                    authGate.style.display = "block";
+                    mainDashboard.style.display = "none";
+                }
+            } else {
+                if (sessionStorage.getItem("bb_admin_auth") === "true") {
+                    authGate.style.display = "none";
+                    mainDashboard.style.display = "block";
+                    if (adminUserBadge) {
+                        adminUserBadge.textContent = "Passcode Session";
+                        adminUserBadge.style.display = "inline-block";
+                    }
+                    initFirebase();
+                } else {
+                    authGate.style.display = "block";
+                    mainDashboard.style.display = "none";
+                    if (adminUserBadge) adminUserBadge.style.display = "none";
+                }
+            }
+        });
+
+        async function handleGoogleSignIn() {
+            if (authErrorMsg) authErrorMsg.style.display = "none";
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                await auth.signInWithPopup(provider);
+            } catch (err) {
+                console.error("Google sign-in error:", err);
+                if (authErrorMsg) {
+                    authErrorMsg.textContent = "Google Sign-in error: " + err.message;
+                    authErrorMsg.style.display = "block";
+                }
+            }
+        }
 
         function handleUnlock(e) {
             if (e) e.preventDefault();
@@ -589,22 +692,22 @@
                 sessionStorage.setItem("bb_admin_auth", "true");
                 authGate.style.display = "none";
                 mainDashboard.style.display = "block";
+                if (adminUserBadge) {
+                    adminUserBadge.textContent = "Passcode Session";
+                    adminUserBadge.style.display = "inline-block";
+                }
                 initFirebase();
             } else {
                 alert("Incorrect admin passcode. Please enter: bagels805");
             }
         }
 
-        function handleLogout() {
+        async function handleLogout() {
             sessionStorage.removeItem("bb_admin_auth");
+            try {
+                await auth.signOut();
+            } catch (_) {}
             location.reload();
-        }
-
-        // Auto-unlock if session exists
-        if (sessionStorage.getItem("bb_admin_auth") === "true") {
-            authGate.style.display = "none";
-            mainDashboard.style.display = "block";
-            window.addEventListener("DOMContentLoaded", initFirebase);
         }
 
         // 2. Tab Navigation
@@ -624,16 +727,6 @@
         let waitlistEmails = [];
         let showArchivedDrops = false;
         let ordersScope = 'current';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAEOwp0RdxMkxXdBx6yJlhPhoXq6Vbi3Do",
-            authDomain: "beachnbagels.firebaseapp.com",
-            projectId: "beachnbagels",
-            storageBucket: "beachnbagels.firebasestorage.app",
-            messagingSenderId: "697659238755",
-            appId: "1:697659238755:web:58ebee2e4195cdc8744b56",
-            measurementId: "G-QWJ8540ZXF"
-        };
 
         function initFirebase() {
             if (db) return; // Already initialized
@@ -779,6 +872,7 @@
                         <p style="margin:4px 0;">📍 <strong>Pickup:</strong> ${drop.pickupLocation || "Silver Strand Beach, Oxnard"}</p>
                         <p style="margin:4px 0;">⏰ <strong>Window:</strong> ${drop.pickupWindow || "Saturday, 8:00 AM - 11:00 AM"}</p>
                         <p style="margin:4px 0;">⏳ <strong>Preorder Cutoff:</strong> ${cutoff}</p>
+                        ${drop.description ? `<p style="margin:8px 0 4px 0; font-size:0.9rem; background:var(--teal-light); padding:8px 12px; border-radius:8px; line-height:1.4; white-space:pre-line;">📝 <strong>Story / Pickup Notes:</strong> ${drop.description}</p>` : ''}
                     </div>
                     <div>
                         <span class="status-pill status-${drop.status || 'draft'}">${(drop.status || 'draft').replace('_', ' ')}</span>
@@ -843,6 +937,7 @@
             document.getElementById("modalDropTitle").value = `Pop-Up Drop #${nextNumber}: Silver Strand`;
             document.getElementById("modalDropWindow").value = "Saturday 8:00 AM - 11:00 AM";
             document.getElementById("modalDropLocation").value = "Silver Strand Beach (Near Jetty), Oxnard, CA";
+            document.getElementById("modalDropDescription").value = "";
             
             // Default cutoff to upcoming Friday noon
             const friday = new Date();
@@ -871,6 +966,7 @@
             document.getElementById("modalDropTitle").value = drop.title || "";
             document.getElementById("modalDropWindow").value = drop.pickupWindow || "";
             document.getElementById("modalDropLocation").value = drop.pickupLocation || "";
+            document.getElementById("modalDropDescription").value = drop.description || "";
 
             if (drop.cutoffAt) {
                 const dateObj = new Date(drop.cutoffAt.toDate ? drop.cutoffAt.toDate() : drop.cutoffAt);
@@ -897,6 +993,7 @@
             const title = document.getElementById("modalDropTitle").value.trim();
             const pickupWindow = document.getElementById("modalDropWindow").value.trim();
             const pickupLocation = document.getElementById("modalDropLocation").value.trim();
+            const description = document.getElementById("modalDropDescription").value.trim();
             const cutoffRaw = document.getElementById("modalDropCutoff").value;
             const status = document.getElementById("modalDropStatus").value;
             const includeStarters = document.getElementById("modalIncludeStarters").checked;
@@ -921,6 +1018,7 @@
                         title,
                         pickupWindow,
                         pickupLocation,
+                        description,
                         cutoffAt: cutoffDate,
                         status
                     });
@@ -929,6 +1027,7 @@
                         title,
                         pickupWindow,
                         pickupLocation,
+                        description,
                         cutoffAt: cutoffDate,
                         status,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()

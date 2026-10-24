@@ -521,6 +521,7 @@
             <div id="bannerCountdown" class="countdown-timer">
                 ⏳ Preorders close: calculating...
             </div>
+            <div id="bannerDescription" style="display: none; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(42, 90, 102, 0.25); font-size: 0.95rem; line-height: 1.55; color: var(--teal-dark); white-space: pre-line; text-align: left;"></div>
         </div>
 
         <!-- Hero Headline & Intro (Shown only between drops or when preorders are closed) -->
@@ -635,15 +636,15 @@
 
             <form id="checkoutForm" style="display:flex; flex-direction:column; gap:12px;">
                 <div>
-                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Full Name (For Pickup Box)</label>
+                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Full Name</label>
                     <input type="text" id="custName" placeholder="e.g. Dylan Astrup" required>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Email (For Confirmation Receipt)</label>
+                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Email</label>
                     <input type="email" id="custEmail" placeholder="you@example.com" required>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Phone Number (For Morning-of Reminder)</label>
+                    <label style="font-size:0.8rem; font-weight:800; text-transform:uppercase;">Phone Number</label>
                     <input type="tel" id="custPhone" placeholder="(805) 555-0123" required>
                 </div>
                 
@@ -873,12 +874,21 @@
             submitBtn.textContent = "Joining...";
 
             try {
-                // Save natively to Firebase Firestore waitlist collection
-                await db.collection("waitlist").add({
-                    email: email,
-                    source: "landing_page",
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                // Submit to /api/submitWaitlist to record subscriber and trigger instant email alert
+                const res = await fetch("/api/submitWaitlist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: email, source: "landing_page" })
                 });
+
+                if (!res.ok) {
+                    // Fallback to client Firestore if API is unreachable
+                    await db.collection("waitlist").add({
+                        email: email,
+                        source: "landing_page",
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
 
                 // Celebratory feedback
                 formFeedback.style.display = "block";
@@ -887,10 +897,24 @@
                 submitBtn.textContent = "Joined! 🥯";
                 submitBtn.disabled = true;
             } catch (err) {
-                console.error("Error subscribing to waitlist:", err);
-                submitBtn.disabled = false;
-                submitBtn.textContent = "Join the Club";
-                alert("Notice: Could not subscribe (" + err.message + "). Please verify your Firebase connection.");
+                // Secondary fallback directly to Firestore
+                try {
+                    await db.collection("waitlist").add({
+                        email: email,
+                        source: "landing_page",
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    formFeedback.style.display = "block";
+                    formFeedback.innerHTML = "🎉 You're in! We'll email you the moment our next drop opens.";
+                    subscriberEmail.value = "";
+                    submitBtn.textContent = "Joined! 🥯";
+                    submitBtn.disabled = true;
+                } catch (fallbackErr) {
+                    console.error("Error subscribing to waitlist:", fallbackErr);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Join the Club";
+                    alert("Notice: Could not subscribe (" + fallbackErr.message + "). Please verify your connection.");
+                }
             }
         });
 
@@ -953,6 +977,16 @@
             bannerDropTitle.textContent = currentDrop.title || "Pop-Up Drop";
             bannerLocation.textContent = currentDrop.pickupLocation || "Silver Strand Beach, Oxnard";
             bannerPickupWindow.textContent = currentDrop.pickupWindow || "Saturday 8:00 AM - 11:00 AM";
+
+            const bannerDescription = document.getElementById("bannerDescription");
+            if (bannerDescription) {
+                if (currentDrop.description && currentDrop.description.trim()) {
+                    bannerDescription.textContent = currentDrop.description.trim();
+                    bannerDescription.style.display = "block";
+                } else {
+                    bannerDescription.style.display = "none";
+                }
+            }
 
             if (isSoldOut) {
                 if (heroIntroSection) heroIntroSection.style.display = "block";
@@ -1017,6 +1051,8 @@
         function renderNoActiveDrop() {
             if (heroIntroSection) heroIntroSection.style.display = "block";
             dropBanner.style.display = "none";
+            const bannerDescription = document.getElementById("bannerDescription");
+            if (bannerDescription) bannerDescription.style.display = "none";
             preorderSection.style.display = "none";
             cartBar.style.display = "none";
             clearCartStorage();
