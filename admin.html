@@ -339,6 +339,195 @@
                 color: #000 !important;
             }
         }
+
+        /* Drop Day Quick Pickup Mode (Mobile Station) */
+        body.immersive-pickup .header,
+        body.immersive-pickup #adminTestModeBanner,
+        body.immersive-pickup .tabs {
+            display: none !important;
+        }
+        body.immersive-pickup .container {
+            padding-top: 8px;
+            max-width: 680px;
+        }
+
+        .quick-pickup-station {
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        .quick-pickup-header {
+            background: var(--white);
+            border: 2px solid var(--teal);
+            border-radius: 18px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 4px 14px rgba(42, 90, 102, 0.08);
+        }
+
+        .quick-pickup-search-wrap {
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+            background: var(--cream);
+            padding: 4px 0 12px 0;
+        }
+
+        .quick-search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .quick-search-box input {
+            width: 100%;
+            padding: 15px 44px 15px 46px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            border: 2.5px solid var(--teal);
+            border-radius: 18px;
+            box-shadow: 0 6px 18px rgba(42, 90, 102, 0.12);
+            background: var(--white);
+            color: var(--teal-dark);
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .quick-search-box input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 6px 22px rgba(253, 187, 76, 0.35);
+        }
+
+        .quick-filter-chips {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+        .quick-filter-chips::-webkit-scrollbar {
+            display: none;
+        }
+
+        .quick-chip {
+            flex: 1;
+            min-width: fit-content;
+            padding: 10px 14px;
+            border-radius: 30px;
+            font-size: 0.92rem;
+            font-weight: 800;
+            font-family: 'Fredoka', sans-serif;
+            border: 2px solid var(--teal);
+            background: var(--white);
+            color: var(--teal);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .quick-chip.active {
+            background: var(--teal);
+            color: var(--white);
+            box-shadow: 0 3px 10px rgba(42, 90, 102, 0.25);
+        }
+
+        .quick-order-card {
+            background: var(--white);
+            border: 2.5px solid var(--teal);
+            border-radius: 18px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            box-shadow: 0 4px 14px rgba(42, 90, 102, 0.08);
+            transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+        }
+
+        .quick-order-card.picked-up-card {
+            border-color: #10B981;
+            background: #F9FDFB;
+        }
+
+        .quick-cust-name {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--teal-dark);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-items-badge-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 12px 0 10px 0;
+        }
+
+        .quick-item-badge {
+            background: #F4F8F9;
+            border: 1.5px solid rgba(42, 90, 102, 0.2);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.98rem;
+            color: var(--teal-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-big-claim {
+            width: 100%;
+            height: 52px;
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: #ffffff;
+            border: 2px solid #047857;
+            border-radius: 14px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-big-claim:active {
+            transform: scale(0.98);
+        }
+
+        .quick-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1E414A;
+            color: #FDF6E9;
+            padding: 12px 22px;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            font-weight: 700;
+            font-size: 0.95rem;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: toastPop 0.25s ease-out;
+            max-width: 90vw;
+            box-sizing: border-box;
+        }
+
+        @keyframes toastPop {
+            from { opacity: 0; transform: translate(-50%, 15px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
     </style>
 </head>
 <body>
@@ -389,6 +578,9 @@
                 </div>
                 <span id="adminUserBadge" style="display: none; font-size: 0.8rem; font-weight: 700; color: var(--teal); background: var(--teal-light); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--teal);"></span>
                 <span class="badge-admin">Admin Portal</span>
+                <button type="button" onclick="switchTab('quickPickupTab')" class="btn btn-sm btn-gold" style="font-weight: 800; border: 2px solid var(--teal); box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                    ⚡ Quick Pickup
+                </button>
                 <a href="index.html" class="btn btn-teal btn-sm">View Live Site ↗</a>
                 <button onclick="handleLogout()" class="btn btn-sm" style="background: none; border: 1px solid var(--teal); color: var(--teal);">Logout</button>
             </div>
@@ -404,6 +596,7 @@
                 <button class="tab-btn active" id="tabBtn-dropsTab" onclick="switchTab('dropsTab')">🥯 Manage Drops & Inventory</button>
                 <button class="tab-btn" id="tabBtn-prepTab" onclick="switchTab('prepTab')">📋 Kitchen Bake Sheet</button>
                 <button class="tab-btn" id="tabBtn-ordersTab" onclick="switchTab('ordersTab')">📦 Customer Orders (<span id="ordersCount">0</span>)</button>
+                <button class="tab-btn" id="tabBtn-quickPickupTab" onclick="switchTab('quickPickupTab')" style="background: #FEF3C7; color: #92400E; border: 2px solid #F59E0B; font-weight: 800;">⚡ Quick Pickup (<span id="quickPickupRemainingCount">0</span> left)</button>
                 <button class="tab-btn" id="tabBtn-waitlistTab" onclick="switchTab('waitlistTab')">✉️ Email Waitlist (<span id="waitlistCount">0</span>)</button>
                 <button class="tab-btn" id="tabBtn-faqTab" onclick="switchTab('faqTab')">❓ Pop-Up FAQ</button>
             </div>
@@ -496,6 +689,7 @@
                             <p style="font-size: 0.85rem; opacity: 0.8;" id="ordersDropSubtitle">Orders for currently selected drop.</p>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="btn btn-sm" style="background: #FEF3C7; color: #92400E; border: 2px solid #F59E0B; font-weight: 800;" onclick="switchTab('quickPickupTab')">⚡ Quick Pickup Mode →</button>
                             <button class="btn btn-sm btn-gold" onclick="printPackingSlips()">🖨️ Print Packing Slips</button>
                             <button class="btn btn-sm btn-teal" onclick="exportOrdersCSV()">⬇️ Export CSV</button>
                             <button class="btn btn-sm" style="background: #EBF2F4; color: var(--teal); border: 2px solid var(--teal);" onclick="syncStripeOrders(this)" title="Sync pending orders and release expired holds">🔄 Sync Stripe & Holds</button>
@@ -542,6 +736,71 @@
                                 <tr><td colspan="6" style="text-align: center; opacity: 0.7;">No orders received yet.</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Drop Day Quick Pickup Mode (Mobile Station) -->
+            <div id="quickPickupTab" class="tab-content" style="display: none;">
+                <div class="quick-pickup-station">
+                    <!-- Drop Day Status & Metrics Card -->
+                    <div class="quick-pickup-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.4rem;">⚡</span>
+                                    <h2 style="font-family: 'Fredoka', sans-serif; font-size: 1.35rem; color: var(--teal); margin: 0;">Drop Day Pickup Station</h2>
+                                </div>
+                                <div style="font-size: 0.88rem; color: var(--teal-dark); opacity: 0.85; margin-top: 3px;">
+                                    Drop: <strong id="quickPickupDropTitle">Selected Drop</strong>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" id="btnToggleFocusMode" onclick="toggleQuickPickupFocus()" class="btn btn-sm" style="background: var(--teal-light); border: 2px solid var(--teal); color: var(--teal); font-weight: 800;">
+                                    📱 Focus Mode
+                                </button>
+                                <button type="button" onclick="switchTab('ordersTab')" class="btn btn-sm" style="background: none; border: 1.5px solid var(--teal); color: var(--teal);">
+                                    ✕ Exit Mode
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Pickup Meter -->
+                        <div style="background: #F4F8F9; border: 1.5px solid rgba(42,90,102,0.2); border-radius: 12px; padding: 12px 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 800;">
+                                <span style="color: var(--teal);"><span id="quickStatClaimed">0</span> / <span id="quickStatTotal">0</span> Picked Up (<span id="quickStatPercent">0%</span>)</span>
+                                <span id="quickStatRemainingBadge" style="background: #FEF3C7; color: #92400E; border: 1px solid #F59E0B; padding: 2px 10px; border-radius: 20px; font-size: 0.85rem;">0 Remaining</span>
+                            </div>
+                            <div style="background: #E5E7EB; border-radius: 50px; height: 12px; overflow: hidden; margin-top: 8px;">
+                                <div id="quickPickupProgressBar" style="background: linear-gradient(90deg, var(--teal), #10B981); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sticky Search & Filter Bar -->
+                    <div class="quick-pickup-search-wrap">
+                        <div class="quick-search-box">
+                            <span style="position: absolute; left: 16px; font-size: 1.3rem; pointer-events: none;">🔍</span>
+                            <input type="text" id="quickPickupSearch" oninput="handleQuickPickupSearch()" placeholder="Search customer name or phone..." autocomplete="off" autocapitalize="none" spellcheck="false">
+                            <button type="button" id="btnQuickPickupClear" onclick="clearQuickPickupSearch()" style="position: absolute; right: 14px; background: none; border: none; font-size: 1.35rem; cursor: pointer; display: none; color: #9CA3AF; padding: 4px;">✕</button>
+                        </div>
+
+                        <div class="quick-filter-chips">
+                            <button type="button" class="quick-chip active" id="chip-unclaimed" onclick="setQuickPickupFilter('unclaimed')">
+                                ⏳ Unclaimed (<span id="quickChipUnclaimedCount">0</span>)
+                            </button>
+                            <button type="button" class="quick-chip" id="chip-picked_up" onclick="setQuickPickupFilter('picked_up')">
+                                ✅ Picked Up (<span id="quickChipPickedUpCount">0</span>)
+                            </button>
+                            <button type="button" class="quick-chip" id="chip-all" onclick="setQuickPickupFilter('all')">
+                                📋 All Orders (<span id="quickChipAllCount">0</span>)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Customer Pickup Cards List -->
+                    <div id="quickPickupCardsList" style="margin-top: 10px;">
+                        <!-- Dynamically filled with order cards -->
                     </div>
                 </div>
             </div>
@@ -929,9 +1188,17 @@
         function switchTab(tabId) {
             document.querySelectorAll(".tab-content").forEach(el => el.style.display = "none");
             document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
-            document.getElementById(tabId).style.display = "block";
+            const target = document.getElementById(tabId);
+            if (target) target.style.display = "block";
             const btn = document.getElementById("tabBtn-" + tabId);
             if (btn) btn.classList.add("active");
+            if (tabId === "quickPickupTab") {
+                renderQuickPickup();
+                setTimeout(() => {
+                    const searchInput = document.getElementById("quickPickupSearch");
+                    if (searchInput) searchInput.focus();
+                }, 100);
+            }
         }
 
         // 3. Firebase Initialization
@@ -969,6 +1236,10 @@
             listenToWaitlist();
             listenToFaq();
             listenToPaymentSettings();
+
+            if (window.location.hash === "#pickup" || new URLSearchParams(window.location.search).get("mode") === "pickup") {
+                switchTab("quickPickupTab");
+            }
         }
 
         let allDrops = [];
@@ -1603,6 +1874,9 @@
 
             // 6. Render table (taking search query into account)
             filterOrders();
+
+            // 7. Update Drop Day Quick Pickup Station
+            renderQuickPickup();
         }
 
         function getScopedOrders() {
@@ -1871,6 +2145,319 @@
             window.print();
             document.body.className = "";
         };
+
+        // ==========================================
+        // Drop Day Quick Pickup Station Logic
+        // ==========================================
+        let quickPickupFilter = 'unclaimed'; // 'unclaimed' | 'picked_up' | 'all'
+        let quickPickupSearchTerm = '';
+        let quickToastTimeout = null;
+
+        function playPickupChime() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.28);
+            } catch (_) {}
+        }
+
+        window.toggleQuickPickupFocus = function() {
+            const isImmersive = document.body.classList.toggle('immersive-pickup');
+            const btn = document.getElementById("btnToggleFocusMode");
+            if (btn) {
+                btn.textContent = isImmersive ? "✕ Standard View" : "📱 Focus Mode";
+                btn.style.background = isImmersive ? "#FEF3C7" : "var(--teal-light)";
+                btn.style.borderColor = isImmersive ? "#F59E0B" : "var(--teal)";
+                btn.style.color = isImmersive ? "#92400E" : "var(--teal)";
+            }
+        };
+
+        window.setQuickPickupFilter = function(filter) {
+            quickPickupFilter = filter;
+            document.querySelectorAll(".quick-chip").forEach(c => c.classList.remove("active"));
+            const activeChip = document.getElementById(`chip-${filter}`);
+            if (activeChip) activeChip.classList.add("active");
+            renderQuickPickup();
+        };
+
+        window.handleQuickPickupSearch = function() {
+            const input = document.getElementById("quickPickupSearch");
+            const clearBtn = document.getElementById("btnQuickPickupClear");
+            quickPickupSearchTerm = (input.value || "").toLowerCase().trim();
+            if (clearBtn) clearBtn.style.display = quickPickupSearchTerm ? "block" : "none";
+            renderQuickPickup();
+        };
+
+        window.clearQuickPickupSearch = function() {
+            const input = document.getElementById("quickPickupSearch");
+            const clearBtn = document.getElementById("btnQuickPickupClear");
+            if (input) {
+                input.value = "";
+                input.focus();
+            }
+            if (clearBtn) clearBtn.style.display = "none";
+            quickPickupSearchTerm = "";
+            renderQuickPickup();
+        };
+
+        window.quickMarkPickup = async function(orderId, isClaimed) {
+            const order = allOrders.find(o => o.id === orderId);
+            const custName = order ? (order.customerName || "Customer") : "Customer";
+
+            // 1. Tactile & audio feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(isClaimed ? [35, 50, 35] : [20]);
+            }
+            if (isClaimed) {
+                playPickupChime();
+            }
+
+            // 2. Optimistic UI update in memory
+            if (order) {
+                order.pickupStatus = isClaimed ? "picked_up" : "unclaimed";
+            }
+            renderQuickPickup();
+
+            // 3. Persist to Firestore
+            try {
+                const updateData = {
+                    pickupStatus: isClaimed ? "picked_up" : "unclaimed"
+                };
+                if (isClaimed) {
+                    updateData.pickedUpAt = firebase.firestore.FieldValue.serverTimestamp();
+                }
+                await db.collection("orders").doc(orderId).update(updateData);
+                showQuickToast(
+                    isClaimed ? `✓ ${custName} marked as picked up!` : `Marked ${custName} as unclaimed`,
+                    orderId,
+                    isClaimed
+                );
+            } catch (err) {
+                console.error("Error updating pickup status:", err);
+                alert("Could not update pickup status: " + err.message);
+                if (order) {
+                    order.pickupStatus = isClaimed ? "unclaimed" : "picked_up";
+                }
+                renderQuickPickup();
+            }
+        };
+
+        function showQuickToast(message, orderId, isClaimed) {
+            let toast = document.getElementById("quickPickupToast");
+            if (!toast) {
+                toast = document.createElement("div");
+                toast.id = "quickPickupToast";
+                toast.className = "quick-toast";
+                document.body.appendChild(toast);
+            }
+
+            clearTimeout(quickToastTimeout);
+            toast.innerHTML = `
+                <span>${message}</span>
+                ${orderId ? `
+                    <button type="button" onclick="quickMarkPickup('${orderId}', ${!isClaimed})" style="background:#FDBB4C; border:none; color:#1E414A; font-weight:800; padding:4px 12px; border-radius:20px; cursor:pointer; font-size:0.85rem;">
+                        ↩ Undo
+                    </button>
+                ` : ''}
+            `;
+            toast.style.display = "flex";
+
+            quickToastTimeout = setTimeout(() => {
+                if (toast) toast.style.display = "none";
+            }, 4500);
+        }
+
+        function renderQuickPickup() {
+            const container = document.getElementById("quickPickupCardsList");
+            if (!container) return;
+
+            const currentDrop = allDrops.find(d => d.id === currentDropId);
+            const dropTitle = currentDrop ? (currentDrop.title || "Selected Drop") : "Selected Drop";
+
+            const titleEl = document.getElementById("quickPickupDropTitle");
+            if (titleEl) titleEl.textContent = dropTitle;
+
+            // Scope orders to current drop
+            const scopedOrders = currentDropId ? allOrders.filter(o => o.dropId === currentDropId) : allOrders;
+
+            const total = scopedOrders.length;
+            const pickedUp = scopedOrders.filter(o => o.pickupStatus === "picked_up").length;
+            const unclaimed = total - pickedUp;
+            const percent = total > 0 ? Math.round((pickedUp / total) * 100) : 0;
+
+            // Update stats
+            const statClaimed = document.getElementById("quickStatClaimed");
+            const statTotal = document.getElementById("quickStatTotal");
+            const statPercent = document.getElementById("quickStatPercent");
+            const statRemainingBadge = document.getElementById("quickStatRemainingBadge");
+            const progressBar = document.getElementById("quickPickupProgressBar");
+            const tabRemainingBadge = document.getElementById("quickPickupRemainingCount");
+
+            if (statClaimed) statClaimed.textContent = pickedUp;
+            if (statTotal) statTotal.textContent = total;
+            if (statPercent) statPercent.textContent = `${percent}%`;
+            if (statRemainingBadge) {
+                statRemainingBadge.textContent = `${unclaimed} Remaining`;
+                statRemainingBadge.style.background = unclaimed === 0 ? "#D1FAE5" : "#FEF3C7";
+                statRemainingBadge.style.color = unclaimed === 0 ? "#065F46" : "#92400E";
+                statRemainingBadge.style.borderColor = unclaimed === 0 ? "#10B981" : "#F59E0B";
+            }
+            if (progressBar) progressBar.style.width = `${percent}%`;
+            if (tabRemainingBadge) tabRemainingBadge.textContent = unclaimed;
+
+            // Update filter chip counters
+            const chipUnclaimed = document.getElementById("quickChipUnclaimedCount");
+            const chipPickedUp = document.getElementById("quickChipPickedUpCount");
+            const chipAll = document.getElementById("quickChipAllCount");
+            if (chipUnclaimed) chipUnclaimed.textContent = unclaimed;
+            if (chipPickedUp) chipPickedUp.textContent = pickedUp;
+            if (chipAll) chipAll.textContent = total;
+
+            // Filter by search query and active chip
+            let filtered = scopedOrders.filter(o => {
+                if (quickPickupFilter === "unclaimed" && o.pickupStatus === "picked_up") return false;
+                if (quickPickupFilter === "picked_up" && o.pickupStatus !== "picked_up") return false;
+
+                if (!quickPickupSearchTerm) return true;
+                const nameMatch = (o.customerName || "").toLowerCase().includes(quickPickupSearchTerm);
+                const phoneMatch = (o.customerPhone || "").replace(/\D/g, "").includes(quickPickupSearchTerm.replace(/\D/g, ""));
+                const emailMatch = (o.customerEmail || "").toLowerCase().includes(quickPickupSearchTerm);
+                return nameMatch || phoneMatch || emailMatch;
+            });
+
+            // Sort: Unclaimed first, then alphabetical by customer name
+            filtered.sort((a, b) => {
+                if (a.pickupStatus !== b.pickupStatus) {
+                    return a.pickupStatus === "picked_up" ? 1 : -1;
+                }
+                const nameA = (a.customerName || "").toLowerCase();
+                const nameB = (b.customerName || "").toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+            // Empty states
+            if (scopedOrders.length === 0) {
+                container.innerHTML = `
+                    <div style="background:#fff; border:2px dashed var(--teal); border-radius:18px; padding:35px 20px; text-align:center;">
+                        <span style="font-size:2.5rem;">🥯</span>
+                        <h3 style="font-family:'Fredoka',sans-serif; color:var(--teal); margin:10px 0 6px 0;">No Orders for This Drop Yet</h3>
+                        <p style="font-size:0.95rem; opacity:0.8; margin:0;">As soon as customer preorders arrive, they will show up here ready for drop day pickup!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (quickPickupFilter === "unclaimed" && unclaimed === 0 && !quickPickupSearchTerm) {
+                container.innerHTML = `
+                    <div style="background:#ECFDF5; border:2.5px solid #10B981; border-radius:20px; padding:40px 24px; text-align:center; box-shadow:0 8px 24px rgba(16,185,129,0.15);">
+                        <span style="font-size:3.5rem;">🦦🎉🥯</span>
+                        <h2 style="font-family:'Fredoka',sans-serif; color:#065F46; font-size:1.8rem; margin:14px 0 8px 0;">ALL BAGELS PICKED UP!</h2>
+                        <p style="font-size:1.05rem; color:#047857; margin:0 0 18px 0; font-weight:700;">
+                            Every single one of your ${total} preorders has been claimed. Great job today, Dylan!
+                        </p>
+                        <button type="button" class="btn btn-teal btn-sm" onclick="setQuickPickupFilter('all')">
+                            View All ${total} Completed Orders
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div style="background:#fff; border:2px dashed var(--teal); border-radius:18px; padding:30px 20px; text-align:center;">
+                        <span style="font-size:2rem;">🔍</span>
+                        <h3 style="font-family:'Fredoka',sans-serif; color:var(--teal); margin:8px 0 4px 0;">No Matching Orders Found</h3>
+                        <p style="font-size:0.92rem; opacity:0.8; margin:0 0 14px 0;">No orders matching "<strong>${quickPickupSearchTerm}</strong>" in ${quickPickupFilter} view.</p>
+                        <button type="button" class="btn btn-gold btn-sm" onclick="clearQuickPickupSearch()">Clear Search</button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Render cards
+            container.innerHTML = filtered.map(order => {
+                const isPickedUp = order.pickupStatus === "picked_up";
+                const isTestOrder = order.isTest || (order.id && order.id.startsWith("cs_test_"));
+                const testBadge = isTestOrder ? `<span style="font-size:0.7rem; background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; padding:2px 8px; border-radius:12px; font-weight:800;">🧪 TEST ORDER</span>` : '';
+
+                // Calculate total bagel units
+                let totalUnits = 0;
+                const itemsBadges = (order.items || []).map(item => {
+                    const units = item.bagelUnits != null ? item.bagelUnits : (
+                        item.bundle === "half" ? (item.quantity || 1) * 6 : (
+                            item.bundle === "dozen" ? (item.quantity || 1) * 12 : (item.quantity || 1)
+                        )
+                    );
+                    totalUnits += units;
+                    const bundleLabel = item.bundleLabel || (item.bundle === "half" ? "Half Dozen (6)" : (item.bundle === "dozen" ? "Full Dozen (12)" : ""));
+                    return `
+                        <div class="quick-item-badge">
+                            <div>
+                                <strong style="font-size: 1.05rem;">${item.quantity || 1}x</strong> ${item.flavorName || item.name || "Bagels"}
+                                ${bundleLabel ? `<span style="font-size:0.82rem; opacity:0.8; display:block;">${bundleLabel}</span>` : ''}
+                            </div>
+                            <span style="font-weight:700; color:var(--teal); font-size:0.9rem;">$${(item.subtotal || 0).toFixed(2)}</span>
+                        </div>
+                    `;
+                }).join("");
+
+                const phoneLink = order.customerPhone ? `
+                    <a href="tel:${order.customerPhone}" style="display:inline-flex; align-items:center; gap:4px; background:#EBF2F4; color:var(--teal); padding:4px 10px; border-radius:20px; font-size:0.85rem; font-weight:700; text-decoration:none; border:1px solid var(--teal);">
+                        📞 ${order.customerPhone}
+                    </a>
+                ` : '';
+
+                return `
+                    <div class="quick-order-card ${isPickedUp ? 'picked-up-card' : ''}" id="quickCard-${order.id}">
+                        <div class="quick-cust-name">
+                            <span style="display:flex; align-items:center; gap:8px;">
+                                <span>${order.customerName || "Customer"}</span>
+                                ${testBadge}
+                            </span>
+                            ${phoneLink}
+                        </div>
+
+                        ${order.customerEmail ? `<div style="font-size:0.82rem; opacity:0.75; margin-top:2px;">${order.customerEmail}</div>` : ''}
+
+                        <div class="quick-items-badge-list">
+                            ${itemsBadges}
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.9rem; font-weight:800; color:var(--teal); margin-bottom:14px; padding:0 2px;">
+                            <span>🥯 ${totalUnits} Bagels Total</span>
+                            <span style="background:var(--teal-light); border:1px solid var(--teal); padding:2px 8px; border-radius:8px;">$${(order.amountTotal || 0).toFixed(2)} PAID</span>
+                        </div>
+
+                        ${!isPickedUp ? `
+                            <button type="button" class="btn-big-claim" onclick="quickMarkPickup('${order.id}', true)">
+                                <span>✓</span> MARK AS PICKED UP
+                            </button>
+                        ` : `
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:#ECFDF5; border:1.5px solid #10B981; border-radius:12px; padding:10px 14px;">
+                                <span style="color:#065F46; font-weight:800; font-size:1rem; display:flex; align-items:center; gap:6px;">
+                                    <span>✅</span> Claimed & Picked Up
+                                </span>
+                                <button type="button" class="btn btn-sm" style="background:#fff; border:1.5px solid #10B981; color:#065F46; font-weight:700;" onclick="quickMarkPickup('${order.id}', false)">
+                                    ↩ Undo
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                `;
+            }).join("");
+        }
 
         window.openBroadcastModal = function() {
             const drop = allDrops.find(d => d.id === currentDropId);
