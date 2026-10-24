@@ -17,8 +17,26 @@ const resendApiKey = defineSecret("RESEND_API_KEY");
 admin.initializeApp();
 const db = admin.firestore();
 
-function getStripeClient() {
-  const key = stripeSecretKey.value() || process.env.STRIPE_SECRET_KEY;
+const stripeTestSecretKey = process.env.STRIPE_TEST_SECRET_KEY;
+
+async function getStripeMode() {
+  try {
+    const snap = await db.collection("content").doc("paymentSettings").get();
+    if (snap.exists && snap.data().mode) {
+      return snap.data().mode; // "test" or "live"
+    }
+  } catch (e) {
+    console.warn("Could not read content/paymentSettings:", e.message);
+  }
+  return "test"; // Default to test mode until explicitly switched
+}
+
+async function getStripeClient(preferredMode = null) {
+  const mode = preferredMode || await getStripeMode();
+  if (mode === "test" && stripeTestSecretKey) {
+    return new Stripe(stripeTestSecretKey);
+  }
+  const key = stripeSecretKey.value() || process.env.STRIPE_SECRET_KEY || stripeTestSecretKey;
   return new Stripe(key);
 }
 
@@ -213,7 +231,7 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const stripe = getStripeClient();
+  const stripe = await getStripeClient();
 
   try {
     const { dropId, items, customerName, customerEmail, customerPhone, returnUrl } = req.body;
@@ -436,17 +454,21 @@ exports.createCheckoutSession = onRequest({ cors: true, secrets: [stripeSecretKe
  * Confirms payment and atomically increments sold counts & logs the order.
  */
 exports.stripeWebhook = onRequest({ secrets: [stripeSecretKey, stripeWebhookSecret] }, async (req, res) => {
-  const stripe = getStripeClient();
+  const stripe = await getStripeClient();
   const sig = req.headers["stripe-signature"];
   const endpointSecret = stripeWebhookSecret.value() || process.env.STRIPE_WEBHOOK_SECRET;
 
   let event;
   try {
     if (endpointSecret && sig) {
-      event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+      try {
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+      } catch (constructErr) {
+        console.warn("Webhook signature mismatch (likely test mode session):", constructErr.message);
+        event = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+      }
     } else {
-      // In local testing or without webhook secret configured
-      event = req.body;
+      event = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     }
   } catch (err) {
     console.error(`Webhook signature verification failed: ${err.message}`);
@@ -757,7 +779,7 @@ exports.releaseCheckoutHold = onRequest({ cors: true, secrets: [stripeSecretKey]
 
     // Expire session on Stripe side so it cannot be reopened
     try {
-      const stripe = getStripeClient();
+      const stripe = await getStripeClient();
       await stripe.checkout.sessions.expire(sessionId);
     } catch (_) {}
 

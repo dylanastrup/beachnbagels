@@ -615,6 +615,11 @@
             </p>
         </div>
 
+        <!-- Storefront Test Mode Banner -->
+        <div id="storefrontTestModeBanner" style="display: none; background: #FEF3C7; border: 2px solid #F59E0B; color: #92400E; padding: 12px 18px; border-radius: 14px; margin: 0 auto 20px auto; max-width: 650px; font-size: 0.9rem; text-align: center; font-weight: 700; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);">
+            🧪 <strong>TEST MODE ACTIVE:</strong> Preorders are currently simulated for testing. Checkout is 100% free using Stripe test card: <code style="background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px;">4242 4242 4242 4242</code> (any future exp & CVC).
+        </div>
+
         <!-- Live Preorder Section (Appears when active drop exists) -->
         <div id="preorderSection">
             <div class="section-header">
@@ -865,6 +870,21 @@
         }, (err) => {
             console.warn("Using default FAQs:", err);
             renderFaqModal(DEFAULT_FAQS);
+        });
+
+        // Listen for Stripe Mode (Test vs Live)
+        let currentStripeMode = "test";
+        db.collection("content").doc("paymentSettings").onSnapshot((doc) => {
+            const banner = document.getElementById("storefrontTestModeBanner");
+            if (doc.exists && doc.data().mode === "live") {
+                currentStripeMode = "live";
+                if (banner) banner.style.display = "none";
+            } else {
+                currentStripeMode = "test";
+                if (banner) banner.style.display = "block";
+            }
+        }, (err) => {
+            console.warn("Could not load paymentSettings:", err);
         });
 
         // State
